@@ -108,7 +108,7 @@ VelKoth supports a powerful reward system that can be managed entirely in-game o
 ### Viewing Rewards
 You can see exactly what rewards are configured for an arena using:
 ` /koth reward list <arena>`
-This will display a numbered list of rewards with human-readable descriptions (e.g., *Command: give Sayan diamond 1*).
+This will display a numbered list of rewards with human-readable descriptions (e.g., *Command: give <player> diamond 1*).
 
 ---
 

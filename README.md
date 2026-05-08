@@ -77,7 +77,38 @@ VelKoth features a robust, auto-completing Brigadier command hierarchy.
 | `/koth schedule add <day> <time> <arena>` | `velkoth.admin` | Add a new event to the automated schedule |
 | `/koth schedule list` | `velkoth.admin` | View all currently scheduled events |
 | `/koth schedule remove <index>` | `velkoth.admin` | Remove a scheduled event by its list index |
+| `/koth set mode <arena> <CAPTURE\|SCORE>` | `velkoth.admin` | Change the win condition (Hold timer or Cumulative points) |
+| `/koth set time <arena> <seconds>` | `velkoth.admin` | Set the required capture time |
+| `/koth set score <arena> <maxScore>` | `velkoth.admin` | Set the target score for SCORE mode |
+| `/koth set grace <arena> <seconds>` | `velkoth.admin` | Set the grace period before capture resets |
+| `/koth reward add <arena> <reward>` | `velkoth.admin` | Add a new win reward (supports Commands, Economy, Items) |
+| `/koth reward list <arena>` | `velkoth.admin` | View all configured rewards for an arena in detail |
+| `/koth reward remove <arena> <index>` | `velkoth.admin` | Remove a specific reward by index |
+| `/koth reward clear <arena>` | `velkoth.admin` | Clear all rewards for an arena |
 | `/koth reload` | `velkoth.admin` | Hot-reload all `.yml` configuration files |
+
+---
+
+## 🎁 Rewards
+
+VelKoth supports a powerful reward system that can be managed entirely in-game or via `arenas.yml`. Rewards are granted to the winning player (or all online members of a team/faction if team hooks are active).
+
+### Supported Reward Types
+
+| Type | Format | Example |
+| :--- | :--- | :--- |
+| **Command** | `COMMAND:<cmd>` or `<cmd>` | `COMMAND:give %player% netherite_ingot 1` |
+| **Economy** | `ECONOMY:<amount>` | `ECONOMY:1000` (Requires Vault) |
+| **Item** | `ITEM:<material>[:<amount>]` | `ITEM:GOLD_BLOCK:3` |
+
+### Reward Placeholders
+* `%player%`: Name of the winner.
+* `%arena%`: ID of the arena.
+
+### Viewing Rewards
+You can see exactly what rewards are configured for an arena using:
+` /koth reward list <arena>`
+This will display a numbered list of rewards with human-readable descriptions (e.g., *Command: give Sayan diamond 1*).
 
 ---
 

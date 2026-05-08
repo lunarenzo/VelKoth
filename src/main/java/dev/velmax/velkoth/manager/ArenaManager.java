@@ -87,28 +87,41 @@ public final class ArenaManager {
         // Parse rewards
         List<Reward> rewards = new ArrayList<>();
         for (String raw : ae.getRewards()) {
-            if (raw.startsWith("ECONOMY:")) {
-                try {
-                    rewards.add(new EconomyReward(Double.parseDouble(raw.substring(8))));
-                } catch (NumberFormatException ignored) {}
-            } else if (raw.startsWith("ITEM:")) {
-                String[] parts = raw.split(":");
-                if (parts.length >= 2) {
-                    Material mat = Material.matchMaterial(parts[1]);
-                    int amount = parts.length >= 3 ? Integer.parseInt(parts[2]) : 1;
-                    if (mat != null) {
-                        rewards.add(new ItemReward(new ItemStack(mat, amount)));
-                    }
-                }
-            } else if (raw.startsWith("COMMAND:")) {
-                rewards.add(new CommandReward(raw.substring(8)));
-            } else {
-                rewards.add(new CommandReward(raw));
+            Reward reward = parseReward(raw);
+            if (reward != null) {
+                rewards.add(reward);
             }
         }
         arena.setRewards(rewards);
 
         return arena;
+    }
+
+    /**
+     * Parse a reward string from config or command.
+     */
+    public @Nullable Reward parseReward(String raw) {
+        if (raw.startsWith("ECONOMY:")) {
+            try {
+                return new EconomyReward(Double.parseDouble(raw.substring(8)));
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        } else if (raw.startsWith("ITEM:")) {
+            String[] parts = raw.split(":");
+            if (parts.length >= 2) {
+                Material mat = Material.matchMaterial(parts[1]);
+                int amount = parts.length >= 3 ? Integer.parseInt(parts[2]) : 1;
+                if (mat != null) {
+                    return new ItemReward(new ItemStack(mat, amount));
+                }
+            }
+            return null;
+        } else if (raw.startsWith("COMMAND:")) {
+            return new CommandReward(raw.substring(8));
+        } else {
+            return new CommandReward(raw);
+        }
     }
 
     private ArenaConfig.ArenaEntry serializeArena(Arena arena) {

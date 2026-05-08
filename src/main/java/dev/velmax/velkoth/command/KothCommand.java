@@ -3,6 +3,7 @@ package dev.velmax.velkoth.command;
 import dev.velmax.velkoth.VelKothPlugin;
 import dev.velmax.velkoth.arena.Arena;
 import dev.velmax.velkoth.arena.region.CuboidRegion;
+import dev.velmax.velkoth.reward.Reward;
 import dev.velmax.velkoth.config.PluginConfig;
 import dev.velmax.velkoth.manager.WandManager;
 import org.incendo.cloud.paper.util.sender.Source;
@@ -156,6 +157,27 @@ public final class KothCommand {
                 .required("arena", StringParser.stringParser(), arenaSuggestions)
                 .required("seconds", IntegerParser.integerParser())
                 .handler(ctx -> handleSetGrace(ctx.sender().source(), ctx.get("arena"), ctx.get("seconds"))));
+
+        // ── Reward ──
+        var rewardBuilder = base.literal("reward").permission("velkoth.admin");
+
+        manager.command(rewardBuilder.literal("add")
+                .required("arena", StringParser.stringParser(), arenaSuggestions)
+                .required("reward", StringParser.greedyStringParser())
+                .handler(ctx -> handleRewardAdd(ctx.sender().source(), ctx.get("arena"), ctx.get("reward"))));
+
+        manager.command(rewardBuilder.literal("remove")
+                .required("arena", StringParser.stringParser(), arenaSuggestions)
+                .required("index", IntegerParser.integerParser())
+                .handler(ctx -> handleRewardRemove(ctx.sender().source(), ctx.get("arena"), ctx.get("index"))));
+
+        manager.command(rewardBuilder.literal("clear")
+                .required("arena", StringParser.stringParser(), arenaSuggestions)
+                .handler(ctx -> handleRewardClear(ctx.sender().source(), ctx.get("arena"))));
+
+        manager.command(rewardBuilder.literal("list")
+                .required("arena", StringParser.stringParser(), arenaSuggestions)
+                .handler(ctx -> handleRewardList(ctx.sender().source(), ctx.get("arena"))));
     }
 
     // ── Create ──
@@ -468,6 +490,74 @@ public final class KothCommand {
                 .replace("<value>", seconds + "s"));
     }
 
+    // ── Reward ──
+
+    private void handleRewardAdd(CommandSender sender, String arenaId, String rewardStr) {
+        Arena arena = plugin.getArenaManager().getArena(arenaId);
+        if (arena == null) {
+            sendPrefixed(sender, plugin.getMessages().getArenaNotFound().replace("<arena>", arenaId));
+            return;
+        }
+
+        Reward reward = plugin.getArenaManager().parseReward(rewardStr);
+        if (reward == null) {
+            sendPrefixed(sender, "<red>Invalid reward format: " + rewardStr);
+            return;
+        }
+
+        arena.rewards().add(reward);
+        plugin.getArenaManager().saveArenas();
+        sendPrefixed(sender, "<green>Added reward: <gold>" + reward.describe() + "</gold> to arena <gold>" + arenaId + "</gold>.");
+    }
+
+    private void handleRewardRemove(CommandSender sender, String arenaId, int index) {
+        Arena arena = plugin.getArenaManager().getArena(arenaId);
+        if (arena == null) {
+            sendPrefixed(sender, plugin.getMessages().getArenaNotFound().replace("<arena>", arenaId));
+            return;
+        }
+
+        if (index < 0 || index >= arena.rewards().size()) {
+            sendPrefixed(sender, "<red>Invalid reward index: " + index);
+            return;
+        }
+
+        Reward removed = arena.rewards().remove(index);
+        plugin.getArenaManager().saveArenas();
+        sendPrefixed(sender, "<green>Removed reward: <gold>" + removed.describe() + "</gold> from arena <gold>" + arenaId + "</gold>.");
+    }
+
+    private void handleRewardClear(CommandSender sender, String arenaId) {
+        Arena arena = plugin.getArenaManager().getArena(arenaId);
+        if (arena == null) {
+            sendPrefixed(sender, plugin.getMessages().getArenaNotFound().replace("<arena>", arenaId));
+            return;
+        }
+
+        arena.rewards().clear();
+        plugin.getArenaManager().saveArenas();
+        sendPrefixed(sender, "<green>Cleared all rewards for arena <gold>" + arenaId + "</gold>.");
+    }
+
+    private void handleRewardList(CommandSender sender, String arenaId) {
+        Arena arena = plugin.getArenaManager().getArena(arenaId);
+        if (arena == null) {
+            sendPrefixed(sender, plugin.getMessages().getArenaNotFound().replace("<arena>", arenaId));
+            return;
+        }
+
+        if (arena.rewards().isEmpty()) {
+            sendPrefixed(sender, "<gray>No rewards configured for arena <gold>" + arenaId + "</gold>.");
+            return;
+        }
+
+        sendPrefixed(sender, "<gold><bold>Rewards for " + arenaId + "</bold></gold>");
+        for (int i = 0; i < arena.rewards().size(); i++) {
+            Reward r = arena.rewards().get(i);
+            sendPrefixed(sender, " <dark_gray>[" + i + "]</dark_gray> <yellow>" + r.describe() + "</yellow>");
+        }
+    }
+
     // ── Reload ──
 
     private void handleReload(CommandSender sender) {
@@ -500,6 +590,12 @@ public final class KothCommand {
         sendPrefixed(sender, " <gold>/koth set time <arena> <seconds></gold>");
         sendPrefixed(sender, " <gold>/koth set score <arena> <maxScore></gold>");
         sendPrefixed(sender, " <gold>/koth set grace <arena> <seconds></gold>");
+        sendPrefixed(sender, "");
+        sendPrefixed(sender, "<gold><bold>Reward Commands</bold></gold>");
+        sendPrefixed(sender, " <gold>/koth reward add <arena> <reward></gold>");
+        sendPrefixed(sender, " <gold>/koth reward remove <arena> <index></gold>");
+        sendPrefixed(sender, " <gold>/koth reward list <arena></gold>");
+        sendPrefixed(sender, " <gold>/koth reward clear <arena></gold>");
     }
 
     // ── Helpers ──

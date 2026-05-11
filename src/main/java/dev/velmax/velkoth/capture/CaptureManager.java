@@ -121,10 +121,13 @@ public final class CaptureManager {
                 }
             }
 
-            if (allSameTeam) {
-                // If everyone is on the same team, or there is only 1 player, it is considered
-                // a single capture state
-                // We pick the first player as the "capturer" for rewards/stats
+            boolean contestEnabled = plugin.getPluginConfig().getCaptureDefaults().isContestEnabled();
+
+            if (allSameTeam || !contestEnabled) {
+                // If everyone is on the same team, or there is only 1 player, OR if contest is disabled,
+                // it is considered a single capture state.
+                // We pick the first player as the "capturer" for rewards/stats.
+                session.setContested(false);
                 handleSingleCapture(arena, session, playersOnHill.getFirst(), playersOnHill);
             } else {
                 handleContested(arena, session, playersOnHill);

@@ -72,6 +72,9 @@ public class ArenaConfig extends OkaeriConfig {
                 "give %player% diamond 3",
                 "eco give %player% 500");
 
+        @Comment("Custom hologram location [x, y, z]")
+        private List<Double> hologramLocation = null;
+
         // Getters & Setters
         public String getDisplayName() {
             return displayName;
@@ -191,6 +194,14 @@ public class ArenaConfig extends OkaeriConfig {
 
         public void setRewards(List<String> rewards) {
             this.rewards = rewards;
+        }
+
+        public List<Double> getHologramLocation() {
+            return hologramLocation;
+        }
+
+        public void setHologramLocation(List<Double> hologramLocation) {
+            this.hologramLocation = hologramLocation;
         }
     }
 }

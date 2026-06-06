@@ -2,6 +2,7 @@ package dev.velmax.velkoth.arena;
 
 import dev.velmax.velkoth.arena.region.Region;
 import dev.velmax.velkoth.reward.Reward;
+import org.bukkit.Location;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +21,7 @@ public final class Arena {
     private List<Reward> rewards;
     private int graceperiod;
     private int maxScore;
+    private Location hologramLocation;
 
     public Arena(String id, String displayName, Region region, int captureTime,
             CaptureMode captureMode, int gracePeriod, int maxScore) {
@@ -100,6 +102,14 @@ public final class Arena {
 
     public void setMaxScore(int maxScore) {
         this.maxScore = maxScore;
+    }
+
+    public Location hologramLocation() {
+        return hologramLocation;
+    }
+
+    public void setHologramLocation(Location hologramLocation) {
+        this.hologramLocation = hologramLocation;
     }
 
     /**

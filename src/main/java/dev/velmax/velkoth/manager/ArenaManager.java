@@ -94,6 +94,12 @@ public final class ArenaManager {
         }
         arena.setRewards(rewards);
 
+        // Parse custom hologram location
+        if (ae.getHologramLocation() != null && ae.getHologramLocation().size() == 3) {
+            List<Double> loc = ae.getHologramLocation();
+            arena.setHologramLocation(new org.bukkit.Location(world, loc.get(0), loc.get(1), loc.get(2)));
+        }
+
         return arena;
     }
 
@@ -162,6 +168,14 @@ public final class ArenaManager {
             }
         }
         ae.setRewards(rewardStrings);
+
+        // Serialize custom hologram location
+        if (arena.hologramLocation() != null) {
+            org.bukkit.Location loc = arena.hologramLocation();
+            ae.setHologramLocation(List.of(loc.getX(), loc.getY(), loc.getZ()));
+        } else {
+            ae.setHologramLocation(null);
+        }
 
         return ae;
     }

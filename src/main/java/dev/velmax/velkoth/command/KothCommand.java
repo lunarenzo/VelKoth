@@ -22,6 +22,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.incendo.cloud.execution.ExecutionCoordinator;
 import org.incendo.cloud.paper.PaperCommandManager;
+import org.bukkit.Location;
+import org.incendo.cloud.parser.standard.DoubleParser;
 import org.incendo.cloud.parser.standard.EnumParser;
 import org.incendo.cloud.parser.standard.IntegerParser;
 import org.incendo.cloud.parser.standard.StringParser;
@@ -157,6 +159,23 @@ public final class KothCommand {
                 .required("arena", StringParser.stringParser(), arenaSuggestions)
                 .required("seconds", IntegerParser.integerParser())
                 .handler(ctx -> handleSetGrace(ctx.sender().source(), ctx.get("arena"), ctx.get("seconds"))));
+
+        manager.command(setBuilder.literal("hologram")
+                .required("arena", StringParser.stringParser(), arenaSuggestions)
+                .senderType(PlayerSource.class)
+                .handler(ctx -> handleSetHologramHere(ctx.sender().source(), ctx.get("arena"))));
+
+        manager.command(setBuilder.literal("hologram")
+                .required("arena", StringParser.stringParser(), arenaSuggestions)
+                .literal("reset")
+                .handler(ctx -> handleSetHologramReset(ctx.sender().source(), ctx.get("arena"))));
+
+        manager.command(setBuilder.literal("hologram")
+                .required("arena", StringParser.stringParser(), arenaSuggestions)
+                .required("x", DoubleParser.doubleParser())
+                .required("y", DoubleParser.doubleParser())
+                .required("z", DoubleParser.doubleParser())
+                .handler(ctx -> handleSetHologramCoords(ctx.sender().source(), ctx.get("arena"), ctx.get("x"), ctx.get("y"), ctx.get("z"))));
 
         // ── Reward ──
         var rewardBuilder = base.literal("reward").permission("velkoth.admin");
@@ -490,6 +509,67 @@ public final class KothCommand {
                 .replace("<value>", seconds + "s"));
     }
 
+    private void handleSetHologramHere(Player player, String arenaId) {
+        Arena arena = plugin.getArenaManager().getArena(arenaId);
+        if (arena == null) {
+            sendPrefixed(player, plugin.getMessages().getArenaNotFound().replace("<arena>", arenaId));
+            return;
+        }
+
+        Location loc = player.getLocation();
+        arena.setHologramLocation(loc);
+        plugin.getArenaManager().saveArenas();
+
+        // Update the hologram location immediately if it is active
+        plugin.getDisplayManager().getHologramManager().updateLocation(arena);
+
+        String coordsStr = String.format("%.1f, %.1f, %.1f", loc.getX(), loc.getY(), loc.getZ());
+        sendPrefixed(player, plugin.getMessages().getArenaModified()
+                .replace("<arena>", arena.id())
+                .replace("<property>", "hologram-location")
+                .replace("<value>", coordsStr));
+    }
+
+    private void handleSetHologramReset(CommandSender sender, String arenaId) {
+        Arena arena = plugin.getArenaManager().getArena(arenaId);
+        if (arena == null) {
+            sendPrefixed(sender, plugin.getMessages().getArenaNotFound().replace("<arena>", arenaId));
+            return;
+        }
+
+        arena.setHologramLocation(null);
+        plugin.getArenaManager().saveArenas();
+
+        // Update the hologram location immediately if it is active
+        plugin.getDisplayManager().getHologramManager().updateLocation(arena);
+
+        sendPrefixed(sender, plugin.getMessages().getArenaModified()
+                .replace("<arena>", arena.id())
+                .replace("<property>", "hologram-location")
+                .replace("<value>", "default"));
+    }
+
+    private void handleSetHologramCoords(CommandSender sender, String arenaId, double x, double y, double z) {
+        Arena arena = plugin.getArenaManager().getArena(arenaId);
+        if (arena == null) {
+            sendPrefixed(sender, plugin.getMessages().getArenaNotFound().replace("<arena>", arenaId));
+            return;
+        }
+
+        Location loc = new Location(arena.region().getWorld(), x, y, z);
+        arena.setHologramLocation(loc);
+        plugin.getArenaManager().saveArenas();
+
+        // Update the hologram location immediately if it is active
+        plugin.getDisplayManager().getHologramManager().updateLocation(arena);
+
+        String coordsStr = String.format("%.1f, %.1f, %.1f", x, y, z);
+        sendPrefixed(sender, plugin.getMessages().getArenaModified()
+                .replace("<arena>", arena.id())
+                .replace("<property>", "hologram-location")
+                .replace("<value>", coordsStr));
+    }
+
     // ── Reward ──
 
     private void handleRewardAdd(CommandSender sender, String arenaId, String rewardStr) {
@@ -590,6 +670,9 @@ public final class KothCommand {
         sendPrefixed(sender, " <gold>/koth set time <arena> <seconds></gold>");
         sendPrefixed(sender, " <gold>/koth set score <arena> <maxScore></gold>");
         sendPrefixed(sender, " <gold>/koth set grace <arena> <seconds></gold>");
+        sendPrefixed(sender, " <gold>/koth set hologram <arena></gold>");
+        sendPrefixed(sender, " <gold>/koth set hologram <arena> <x> <y> <z></gold>");
+        sendPrefixed(sender, " <gold>/koth set hologram <arena> reset</gold>");
         sendPrefixed(sender, "");
         sendPrefixed(sender, "<gold><bold>Reward Commands</bold></gold>");
         sendPrefixed(sender, " <gold>/koth reward add <arena> <reward></gold>");

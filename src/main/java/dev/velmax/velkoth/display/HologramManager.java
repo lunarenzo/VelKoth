@@ -39,9 +39,18 @@ public class HologramManager {
         if (!plugin.getPluginConfig().getDisplay().isHologramEnabled())
             return;
 
-        Location center = arena.region().getCenter();
-        // Adjust Y offset as configured (e.g. +3 blocks above center)
-        center.add(0, plugin.getPluginConfig().getDisplay().getHologramYOffset(), 0);
+        Location center;
+        if (arena.hologramLocation() != null) {
+            center = arena.hologramLocation().clone();
+        } else {
+            center = arena.region().getCenter();
+            // Adjust Y offset as configured (e.g. +3 blocks above center)
+            center.add(0, plugin.getPluginConfig().getDisplay().getHologramYOffset(), 0);
+        }
+
+        // Always center to the block (X.5, Z.5)
+        center.setX(center.getBlockX() + 0.5);
+        center.setZ(center.getBlockZ() + 0.5);
 
         if (center.getWorld() == null)
             return;
@@ -68,15 +77,25 @@ public class HologramManager {
         });
     }
 
-    /**
-     * Safely removes the hologram for an arena.
-     * 
-     * @param arena the arena
-     */
     public void remove(Arena arena) {
         TextDisplay display = holograms.remove(arena);
         if (display != null && display.isValid()) {
-            display.getScheduler().run(plugin, scheduledTask -> display.remove(), null);
+            if (plugin.isEnabled()) {
+                display.getScheduler().run(plugin, scheduledTask -> display.remove(), null);
+            } else {
+                display.remove();
+            }
+        }
+    }
+
+
+    /**
+     * Updates the location of the hologram dynamically if it is active.
+     */
+    public void updateLocation(Arena arena) {
+        if (holograms.containsKey(arena)) {
+            remove(arena);
+            spawn(arena);
         }
     }
 

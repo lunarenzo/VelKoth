@@ -149,10 +149,10 @@ public final class VelKothPlugin extends JavaPlugin {
         });
     }
 
-    /**
-     * Reload all configuration files and re-initialize dependent systems.
-     */
     public void reloadAllConfigs() {
+        if (captureManager != null) {
+            captureManager.shutdown();
+        }
         pluginConfig.load(true);
         messagesConfig.load(true);
         arenaConfig.load(true);
@@ -160,6 +160,7 @@ public final class VelKothPlugin extends JavaPlugin {
         schedulerManager.loadSchedule();
         getLogger().info("All configurations reloaded.");
     }
+
 
     // ── Accessors ──
 

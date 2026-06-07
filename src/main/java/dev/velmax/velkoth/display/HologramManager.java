@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class HologramManager {
 
     private final VelKothPlugin plugin;
-    private final Map<Arena, TextDisplay> holograms = new ConcurrentHashMap<>();
+    private final Map<String, TextDisplay> holograms = new ConcurrentHashMap<>();
     private final MiniMessage mm = MiniMessage.miniMessage();
 
     public HologramManager(VelKothPlugin plugin) {
@@ -57,7 +57,7 @@ public class HologramManager {
 
         Bukkit.getRegionScheduler().run(plugin, center, task -> {
             // Remove existing if present to avoid duplication inside the regional thread
-            TextDisplay existing = holograms.get(arena);
+            TextDisplay existing = holograms.get(arena.id());
             if (existing != null && existing.isValid()) {
                 existing.remove();
             }
@@ -68,17 +68,22 @@ public class HologramManager {
                 entity.setDefaultBackground(false);
                 entity.setViewRange(32f);
                 entity.setAlignment(TextDisplay.TextAlignment.CENTER);
+                entity.setPersistent(false); // Do not persist in chunk files
 
                 // Set initial state
                 entity.text(Component.empty());
             });
 
-            holograms.put(arena, display);
+            holograms.put(arena.id(), display);
         });
     }
 
     public void remove(Arena arena) {
-        TextDisplay display = holograms.remove(arena);
+        remove(arena.id());
+    }
+
+    public void remove(String arenaId) {
+        TextDisplay display = holograms.remove(arenaId);
         if (display != null && display.isValid()) {
             if (plugin.isEnabled()) {
                 display.getScheduler().run(plugin, scheduledTask -> display.remove(), null);
@@ -93,8 +98,8 @@ public class HologramManager {
      * Updates the location of the hologram dynamically if it is active.
      */
     public void updateLocation(Arena arena) {
-        if (holograms.containsKey(arena)) {
-            remove(arena);
+        if (holograms.containsKey(arena.id())) {
+            remove(arena.id());
             spawn(arena);
         }
     }
@@ -103,8 +108,8 @@ public class HologramManager {
      * Removes all active holograms (e.g. on plugin disable).
      */
     public void removeAll() {
-        for (Arena arena : new ArrayList<>(holograms.keySet())) {
-            remove(arena);
+        for (String arenaId : new ArrayList<>(holograms.keySet())) {
+            remove(arenaId);
         }
     }
 
@@ -117,7 +122,7 @@ public class HologramManager {
         if (!plugin.getPluginConfig().getDisplay().isHologramEnabled())
             return;
 
-        TextDisplay display = holograms.get(arena);
+        TextDisplay display = holograms.get(arena.id());
         if (display == null || !display.isValid()) {
             // If invalid (e.g. chunk unloaded and entity lost somehow), respawn it
             spawn(arena);

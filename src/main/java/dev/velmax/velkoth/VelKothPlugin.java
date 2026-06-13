@@ -14,6 +14,7 @@ import dev.velmax.velkoth.manager.ArenaManager;
 import dev.velmax.velkoth.manager.RewardManager;
 import dev.velmax.velkoth.manager.StatsManager;
 import dev.velmax.velkoth.manager.WandManager;
+import dev.velmax.velkoth.manager.DynamicTriggerManager;
 import dev.velmax.velkoth.team.TeamManager;
 import dev.velmax.velkoth.scheduler.SchedulerManager;
 import dev.velmax.velkoth.storage.DatabaseManager;
@@ -49,6 +50,7 @@ public final class VelKothPlugin extends JavaPlugin {
     private WandManager wandManager;
     private SchedulerManager schedulerManager;
     private TeamManager teamManager;
+    private DynamicTriggerManager dynamicTriggerManager;
 
     @Override
     public void onEnable() {
@@ -70,6 +72,7 @@ public final class VelKothPlugin extends JavaPlugin {
         wandManager = new WandManager();
         schedulerManager = new SchedulerManager(this);
         teamManager = new TeamManager(this);
+        dynamicTriggerManager = new DynamicTriggerManager(this);
         teamManager.loadHook();
 
         // 4. Load arenas from config
@@ -214,5 +217,9 @@ public final class VelKothPlugin extends JavaPlugin {
 
     public TeamManager getTeamManager() {
         return teamManager;
+    }
+
+    public DynamicTriggerManager getDynamicTriggerManager() {
+        return dynamicTriggerManager;
     }
 }

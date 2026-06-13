@@ -43,5 +43,8 @@ public final class PlayerListener implements Listener {
 
         // Create player scoreboard
         plugin.getDisplayManager().getScoreboardManager().createBoard(event.getPlayer());
+
+        // Check for dynamic player count triggers
+        plugin.getDynamicTriggerManager().checkTrigger();
     }
 }

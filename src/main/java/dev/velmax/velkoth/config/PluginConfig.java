@@ -39,6 +39,12 @@ public class PluginConfig extends OkaeriConfig {
             "SATURDAY:14:00:spawn_koth",
             "SUNDAY:18:00:random");
 
+    @Comment("Minimum player count threshold for scheduled events to start. Set to 0 to disable.")
+    private int scheduleMinPlayers = 0;
+
+    @Comment("Dynamic player-count event settings")
+    private DynamicTriggerConfig dynamicTriggers = new DynamicTriggerConfig();
+
     public DatabaseConfig getDatabase() {
         return database;
     }
@@ -61,6 +67,14 @@ public class PluginConfig extends OkaeriConfig {
 
     public String getScheduleTimezone() {
         return scheduleTimezone;
+    }
+
+    public int getScheduleMinPlayers() {
+        return scheduleMinPlayers;
+    }
+
+    public DynamicTriggerConfig getDynamicTriggers() {
+        return dynamicTriggers;
     }
 
     public static class DatabaseConfig extends OkaeriConfig {
@@ -222,6 +236,36 @@ public class PluginConfig extends OkaeriConfig {
 
         public double getHologramYOffset() {
             return hologramYOffset;
+        }
+    }
+
+    public static class DynamicTriggerConfig extends OkaeriConfig {
+        @Comment("Enable dynamic player-count event triggers")
+        private boolean enabled = false;
+
+        @Comment("Minimum player count to trigger a KOTH event")
+        private int minPlayers = 15;
+
+        @Comment("Minimum cooldown in minutes between dynamically triggered events")
+        private int cooldownMinutes = 60;
+
+        @Comment("List of arena IDs to randomly select from, or ['random'] to select from all idle arenas")
+        private List<String> arenas = List.of("random");
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public int getMinPlayers() {
+            return minPlayers;
+        }
+
+        public int getCooldownMinutes() {
+            return cooldownMinutes;
+        }
+
+        public List<String> getArenas() {
+            return arenas;
         }
     }
 }

@@ -2,6 +2,7 @@ package dev.velmax.velkoth.scheduler;
 
 import dev.velmax.velkoth.VelKothPlugin;
 import dev.velmax.velkoth.arena.Arena;
+import org.bukkit.Bukkit;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -63,6 +64,14 @@ public final class SchedulerManager {
             // Must run on main thread
             plugin.getServer().getGlobalRegionScheduler().execute(plugin, () -> {
                 String arenaId = entry.arenaId();
+
+                int minPlayers = plugin.getPluginConfig().getScheduleMinPlayers();
+                if (minPlayers > 0 && Bukkit.getOnlinePlayers().size() < minPlayers) {
+                    plugin.getLogger().info("Scheduled event for '" + arenaId + "' canceled: online players (" +
+                            Bukkit.getOnlinePlayers().size() + ") < threshold (" + minPlayers + ").");
+                    return;
+                }
+
                 if ("random".equalsIgnoreCase(arenaId)) {
                     startRandomArena();
                 } else {

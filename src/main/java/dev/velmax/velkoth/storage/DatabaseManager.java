@@ -24,9 +24,11 @@ public final class DatabaseManager {
 
     private final JavaPlugin plugin;
     private HikariDataSource dataSource;
+    private final boolean isMySQL;
 
     public DatabaseManager(JavaPlugin plugin, PluginConfig.DatabaseConfig config) {
         this.plugin = plugin;
+        this.isMySQL = config.getType().equalsIgnoreCase("MYSQL");
         setupDataSource(config);
         createTables();
     }
@@ -67,14 +69,23 @@ public final class DatabaseManager {
                             last_win_timestamp BIGINT DEFAULT 0
                         )
                     """);
-            stmt.executeUpdate("""
+            
+            String logTableQuery = isMySQL ? """
+                        CREATE TABLE IF NOT EXISTS koth_win_log (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            uuid VARCHAR(36) NOT NULL,
+                            arena_id VARCHAR(64) NOT NULL,
+                            win_timestamp BIGINT NOT NULL
+                        )
+                    """ : """
                         CREATE TABLE IF NOT EXISTS koth_win_log (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             uuid VARCHAR(36) NOT NULL,
                             arena_id VARCHAR(64) NOT NULL,
                             win_timestamp BIGINT NOT NULL
                         )
-                    """);
+                    """;
+            stmt.executeUpdate(logTableQuery);
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to create database tables", e);
         }
@@ -88,14 +99,22 @@ public final class DatabaseManager {
             long now = System.currentTimeMillis();
             try (Connection conn = dataSource.getConnection()) {
                 // Upsert stats
-                try (PreparedStatement ps = conn.prepareStatement("""
+                String upsertQuery = isMySQL ? """
+                            INSERT INTO koth_stats (uuid, player_name, total_wins, last_win_timestamp)
+                            VALUES (?, ?, 1, ?)
+                            ON DUPLICATE KEY UPDATE
+                                player_name = VALUES(player_name),
+                                total_wins = total_wins + 1,
+                                last_win_timestamp = VALUES(last_win_timestamp)
+                        """ : """
                             INSERT INTO koth_stats (uuid, player_name, total_wins, last_win_timestamp)
                             VALUES (?, ?, 1, ?)
                             ON CONFLICT(uuid) DO UPDATE SET
                                 player_name = excluded.player_name,
                                 total_wins = total_wins + 1,
                                 last_win_timestamp = excluded.last_win_timestamp
-                        """)) {
+                        """;
+                try (PreparedStatement ps = conn.prepareStatement(upsertQuery)) {
                     ps.setString(1, uuid.toString());
                     ps.setString(2, playerName);
                     ps.setLong(3, now);

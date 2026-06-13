@@ -194,6 +194,19 @@ public final class ArenaManager {
                 .toList();
     }
 
+    /**
+     * Checks if there is any active arena without allocating memory.
+     * @return true if at least one arena is ACTIVE, false otherwise
+     */
+    public boolean hasActiveArena() {
+        for (Arena arena : arenas.values()) {
+            if (arena.state() == Arena.ArenaState.ACTIVE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public boolean arenaExists(String id) {
         return arenas.containsKey(id.toLowerCase());
     }

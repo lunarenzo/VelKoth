@@ -66,9 +66,10 @@ public final class SchedulerManager {
                 String arenaId = entry.arenaId();
 
                 int minPlayers = plugin.getPluginConfig().getScheduleMinPlayers();
-                if (minPlayers > 0 && Bukkit.getOnlinePlayers().size() < minPlayers) {
+                int onlineCount = Bukkit.getOnlinePlayers().size();
+                if (minPlayers > 0 && onlineCount < minPlayers) {
                     plugin.getLogger().info("Scheduled event for '" + arenaId + "' canceled: online players (" +
-                            Bukkit.getOnlinePlayers().size() + ") < threshold (" + minPlayers + ").");
+                            onlineCount + ") < threshold (" + minPlayers + ").");
                     return;
                 }
 

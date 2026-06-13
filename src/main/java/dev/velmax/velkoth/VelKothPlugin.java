@@ -80,6 +80,7 @@ public final class VelKothPlugin extends JavaPlugin {
 
         // 5. Load schedule
         schedulerManager.loadSchedule();
+        dynamicTriggerManager.start();
 
         // 6. Register commands
         new KothCommand(this);
@@ -115,6 +116,8 @@ public final class VelKothPlugin extends JavaPlugin {
             displayManager.cleanup();
         if (schedulerManager != null)
             schedulerManager.shutdown();
+        if (dynamicTriggerManager != null)
+            dynamicTriggerManager.stop();
         if (arenaManager != null)
             arenaManager.saveArenas();
         if (databaseManager != null)

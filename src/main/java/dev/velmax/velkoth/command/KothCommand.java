@@ -371,13 +371,47 @@ public final class KothCommand {
         }
 
         Long delayMs = plugin.getSchedulerManager().getNextStartTime(name);
-        if (delayMs == null) {
-            sendPrefixed(sender, plugin.getMessages().getNoNextScheduled().replace("<arena>", name));
+        var dynamicConfig = plugin.getPluginConfig().getDynamicTriggers();
+
+        // Check if dynamic triggers apply to this arena (list is empty, contains "random", or contains this arena name)
+        boolean isDynamic = dynamicConfig.isEnabled() &&
+                (dynamicConfig.getArenas().isEmpty() ||
+                 dynamicConfig.getArenas().stream().anyMatch(id -> id.equalsIgnoreCase("random") || id.equalsIgnoreCase(name)));
+
+        if (isDynamic) {
+            if (arena.state() == Arena.ArenaState.ACTIVE) {
+                sendPrefixed(sender, "<yellow>Arena <gold>" + arena.id() + "</gold> is currently active!</yellow>");
+                return;
+            }
+
+            long cooldownMs = java.util.concurrent.TimeUnit.MINUTES.toMillis(dynamicConfig.getCooldownMinutes());
+            long elapsed = System.currentTimeMillis() - plugin.getDynamicTriggerManager().getLastTriggerTime();
+            long remaining = cooldownMs - elapsed;
+
+            if (remaining > 0) {
+                String timeStr = formatDuration(remaining);
+                sendPrefixed(sender, "<gray>Arena <gold>" + arena.id() + "</gold> is on dynamic trigger cooldown. Remaining: <yellow>" + timeStr + "</yellow>.</gray>");
+            } else {
+                int online = org.bukkit.Bukkit.getOnlinePlayers().size();
+                int required = dynamicConfig.getMinPlayers();
+                sendPrefixed(sender, "<gray>Arena <gold>" + arena.id() + "</gold> is ready to start dynamically (requires <yellow>" + required + "</yellow> online players, currently: <green>" + online + "/" + required + "</green>).</gray>");
+            }
+
+            if (delayMs != null) {
+                String timeStr = formatDuration(delayMs);
+                sendPrefixed(sender, plugin.getMessages().getNextScheduled()
+                        .replace("<arena>", name)
+                        .replace("<time>", timeStr) + " <gray>(Scheduled)</gray>");
+            }
         } else {
-            String timeStr = formatDuration(delayMs);
-            sendPrefixed(sender, plugin.getMessages().getNextScheduled()
-                    .replace("<arena>", name)
-                    .replace("<time>", timeStr));
+            if (delayMs == null) {
+                sendPrefixed(sender, plugin.getMessages().getNoNextScheduled().replace("<arena>", name));
+            } else {
+                String timeStr = formatDuration(delayMs);
+                sendPrefixed(sender, plugin.getMessages().getNextScheduled()
+                        .replace("<arena>", name)
+                        .replace("<time>", timeStr));
+            }
         }
     }
 

@@ -2,7 +2,10 @@ package dev.velmax.velkoth.manager;
 
 import dev.velmax.velkoth.VelKothPlugin;
 import dev.velmax.velkoth.arena.Arena;
+import dev.velmax.velkoth.api.event.KothStopEvent;
 import org.bukkit.Bukkit;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -14,7 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Manages dynamically triggering KoTH events based on server player count.
  * Leverages atomic flags for safe concurrent accesses across region threads.
  */
-public final class DynamicTriggerManager {
+public final class DynamicTriggerManager implements Listener {
 
     private final VelKothPlugin plugin;
     private final AtomicLong lastTriggerTime = new AtomicLong(0L);
@@ -44,6 +47,15 @@ public final class DynamicTriggerManager {
             periodicTask.cancel();
             periodicTask = null;
         }
+    }
+
+    /**
+     * Listens to the KothStopEvent to mark the start of the dynamic trigger cooldown.
+     * This guarantees the cooldown counts down from when the KOTH finishes, not when it starts.
+     */
+    @EventHandler
+    public void onKothStop(KothStopEvent event) {
+        lastTriggerTime.set(System.currentTimeMillis());
     }
 
     /**
@@ -119,7 +131,6 @@ public final class DynamicTriggerManager {
                 }
 
                 if (selectedArena != null) {
-                    lastTriggerTime.set(now);
                     plugin.getCaptureManager().startArena(selectedArena);
                     plugin.getLogger().info("Dynamic trigger fired: Started KOTH '" + selectedArena.id() +
                             "' because online players reached " + onlinePlayers + " (threshold: " + config.getMinPlayers() + ").");

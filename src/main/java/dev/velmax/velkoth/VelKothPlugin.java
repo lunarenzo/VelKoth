@@ -89,6 +89,7 @@ public final class VelKothPlugin extends JavaPlugin {
         var pm = Bukkit.getPluginManager();
         pm.registerEvents(new WandListener(this), this);
         pm.registerEvents(new PlayerListener(this), this);
+        pm.registerEvents(dynamicTriggerManager, this);
 
         // 8. Hooks
         VaultHook.setup(getLogger());

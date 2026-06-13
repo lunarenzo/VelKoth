@@ -26,6 +26,16 @@ public final class DynamicTriggerManager implements Listener {
 
     public DynamicTriggerManager(VelKothPlugin plugin) {
         this.plugin = plugin;
+        loadLastTriggerTime();
+    }
+
+    private void loadLastTriggerTime() {
+        String val = plugin.getDatabaseManager().getMetadataSync("dynamic_trigger_last_time");
+        if (val != null) {
+            try {
+                lastTriggerTime.set(Long.parseLong(val));
+            } catch (NumberFormatException ignored) {}
+        }
     }
 
     /**
@@ -55,7 +65,9 @@ public final class DynamicTriggerManager implements Listener {
      */
     @EventHandler
     public void onKothStop(KothStopEvent event) {
-        lastTriggerTime.set(System.currentTimeMillis());
+        long now = System.currentTimeMillis();
+        lastTriggerTime.set(now);
+        plugin.getDatabaseManager().setMetadata("dynamic_trigger_last_time", String.valueOf(now));
     }
 
     /**

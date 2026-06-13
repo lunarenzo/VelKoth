@@ -69,6 +69,13 @@ public final class DatabaseManager {
                             last_win_timestamp BIGINT DEFAULT 0
                         )
                     """);
+
+            stmt.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS koth_metadata (
+                            meta_key VARCHAR(64) PRIMARY KEY,
+                            meta_value VARCHAR(256) NOT NULL
+                        )
+                    """);
             
             String logTableQuery = isMySQL ? """
                         CREATE TABLE IF NOT EXISTS koth_win_log (
@@ -89,6 +96,51 @@ public final class DatabaseManager {
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to create database tables", e);
         }
+    }
+
+    /**
+     * Get a metadata value synchronously. Safe to call on startup.
+     */
+    public String getMetadataSync(String key) {
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(
+                        "SELECT meta_value FROM koth_metadata WHERE meta_key = ?")) {
+            ps.setString(1, key);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("meta_value");
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.WARNING, "Failed to get metadata sync for key: " + key, e);
+        }
+        return null;
+    }
+
+    /**
+     * Save a metadata value asynchronously.
+     */
+    public CompletableFuture<Void> setMetadata(String key, String value) {
+        return CompletableFuture.runAsync(() -> {
+            try (Connection conn = dataSource.getConnection()) {
+                String query = isMySQL ? """
+                            INSERT INTO koth_metadata (meta_key, meta_value)
+                            VALUES (?, ?)
+                            ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)
+                        """ : """
+                            INSERT INTO koth_metadata (meta_key, meta_value)
+                            VALUES (?, ?)
+                            ON CONFLICT(meta_key) DO UPDATE SET meta_value = excluded.meta_value
+                        """;
+                try (PreparedStatement ps = conn.prepareStatement(query)) {
+                    ps.setString(1, key);
+                    ps.setString(2, value);
+                    ps.executeUpdate();
+                }
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.WARNING, "Failed to set metadata for key: " + key, e);
+            }
+        });
     }
 
     /**

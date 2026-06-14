@@ -191,9 +191,7 @@ public class HologramManager {
 
         // Build multi-line component
         boolean first = true;
-        String escapedArena = mm.escapeTags(arenaName);
-        String escapedCapturer = mm.escapeTags(capturerName);
-        String escapedTime = mm.escapeTags(timeString);
+        TemplateCache templateCache = plugin.getDisplayManager().getTemplateCache();
 
         for (String line : rawLines) {
             if (!first) {
@@ -201,11 +199,9 @@ public class HologramManager {
             }
             first = false;
 
-            String resolved = line
-                    .replace("<arena>", escapedArena)
-                    .replace("<capturer>", escapedCapturer)
-                    .replace("<time>", escapedTime);
-            finalComponent = finalComponent.append(parseMiniMessage(resolved));
+            Component templateComponent = templateCache.getTemplate(line);
+            Component parsedLine = templateCache.resolve(templateComponent, arenaName, null, timeString, capturerName);
+            finalComponent = finalComponent.append(parsedLine);
         }
 
         final Component finalComp = finalComponent;

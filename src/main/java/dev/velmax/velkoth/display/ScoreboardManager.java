@@ -295,16 +295,11 @@ public class ScoreboardManager {
                 timeString = formatTime(session, arena);
             }
 
-            String escapedArena = mm.escapeTags(arenaName);
-            String escapedCapturer = mm.escapeTags(capturerName);
-            String escapedTime = mm.escapeTags(timeString);
-
+            TemplateCache templateCache = plugin.getDisplayManager().getTemplateCache();
             for (String line : rawLines) {
-                String resolved = line
-                        .replace("<arena>", escapedArena)
-                        .replace("<capturer>", escapedCapturer)
-                        .replace("<time>", escapedTime);
-                finalLines.add(parseMiniMessage(resolved));
+                Component templateComponent = templateCache.getTemplate(line);
+                Component parsedLine = templateCache.resolve(templateComponent, arenaName, null, timeString, capturerName);
+                finalLines.add(parsedLine);
             }
         }
         return finalLines;

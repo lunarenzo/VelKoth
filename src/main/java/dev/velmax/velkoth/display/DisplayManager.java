@@ -41,9 +41,15 @@ public final class DisplayManager {
         }
     };
 
+    private final TemplateCache templateCache = new TemplateCache();
+
     private record BossBarState(Component name, float progress) {}
     private final Map<String, BossBarState> lastBossBarStates = new ConcurrentHashMap<>();
     private Component cachedPrefix;
+
+    public TemplateCache getTemplateCache() {
+        return templateCache;
+    }
 
     public DisplayManager(VelKothPlugin plugin) {
         this.plugin = plugin;
@@ -280,6 +286,7 @@ public final class DisplayManager {
 
     public void reload() {
         miniMessageCache.clear();
+        templateCache.clear();
         cachedPrefix = null;
         lastBossBarStates.clear();
         scoreboardManager.reload();
@@ -297,16 +304,8 @@ public final class DisplayManager {
             time = formatTime(Math.max(0, remaining));
         }
 
-        String escapedArena = miniMessage.escapeTags(arenaName);
-        String escapedPlayer = miniMessage.escapeTags(playerName);
-        String escapedTime = miniMessage.escapeTags(time);
-
-        String resolved = template
-                .replace("<arena>", escapedArena)
-                .replace("<player>", escapedPlayer)
-                .replace("<time>", escapedTime);
-
-        return parseMiniMessage(resolved);
+        Component templateComponent = templateCache.getTemplate(template);
+        return templateCache.resolve(templateComponent, arenaName, playerName, time, null);
     }
 
     private String formatTime(int totalSeconds) {

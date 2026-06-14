@@ -121,26 +121,31 @@ public final class DatabaseManager {
      * Save a metadata value asynchronously.
      */
     public CompletableFuture<Void> setMetadata(String key, String value) {
-        return CompletableFuture.runAsync(() -> {
-            try (Connection conn = dataSource.getConnection()) {
-                String query = isMySQL ? """
-                            INSERT INTO koth_metadata (meta_key, meta_value)
-                            VALUES (?, ?)
-                            ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)
-                        """ : """
-                            INSERT INTO koth_metadata (meta_key, meta_value)
-                            VALUES (?, ?)
-                            ON CONFLICT(meta_key) DO UPDATE SET meta_value = excluded.meta_value
-                        """;
-                try (PreparedStatement ps = conn.prepareStatement(query)) {
-                    ps.setString(1, key);
-                    ps.setString(2, value);
-                    ps.executeUpdate();
-                }
-            } catch (SQLException e) {
-                plugin.getLogger().log(Level.WARNING, "Failed to set metadata for key: " + key, e);
+        return CompletableFuture.runAsync(() -> setMetadataSync(key, value));
+    }
+
+    /**
+     * Save a metadata value synchronously. Safe to call during shutdown or stop events.
+     */
+    public void setMetadataSync(String key, String value) {
+        try (Connection conn = dataSource.getConnection()) {
+            String query = isMySQL ? """
+                        INSERT INTO koth_metadata (meta_key, meta_value)
+                        VALUES (?, ?)
+                        ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)
+                    """ : """
+                        INSERT INTO koth_metadata (meta_key, meta_value)
+                        VALUES (?, ?)
+                        ON CONFLICT(meta_key) DO UPDATE SET meta_value = excluded.meta_value
+                    """;
+            try (PreparedStatement ps = conn.prepareStatement(query)) {
+                ps.setString(1, key);
+                ps.setString(2, value);
+                ps.executeUpdate();
             }
-        });
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.WARNING, "Failed to set metadata sync for key: " + key, e);
+        }
     }
 
     /**

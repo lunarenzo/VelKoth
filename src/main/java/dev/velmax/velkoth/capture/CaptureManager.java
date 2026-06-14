@@ -370,11 +370,9 @@ public final class CaptureManager {
      */
     public void shutdown() {
         stopTickLoop();
-        // Stop all active arenas gracefully
-        for (Arena arena : plugin.getArenaManager().getActiveArenas()) {
-            arena.setState(Arena.ArenaState.IDLE);
-            removeSession(arena.id());
-            plugin.getDisplayManager().removeBossBar(arena);
+        // Stop all active arenas gracefully and fire events
+        for (Arena arena : List.copyOf(plugin.getArenaManager().getActiveArenas())) {
+            stopArena(arena);
         }
         sessions.clear();
         plugin.getDisplayManager().getHologramManager().removeAll();

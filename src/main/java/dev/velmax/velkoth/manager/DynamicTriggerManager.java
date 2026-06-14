@@ -67,7 +67,7 @@ public final class DynamicTriggerManager implements Listener {
     public void onKothStop(KothStopEvent event) {
         long now = System.currentTimeMillis();
         lastTriggerTime.set(now);
-        plugin.getDatabaseManager().setMetadata("dynamic_trigger_last_time", String.valueOf(now));
+        plugin.getDatabaseManager().setMetadataSync("dynamic_trigger_last_time", String.valueOf(now));
     }
 
     /**

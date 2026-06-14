@@ -165,6 +165,9 @@ public final class VelKothPlugin extends JavaPlugin {
         arenaConfig.load(true);
         arenaManager.loadArenas();
         schedulerManager.loadSchedule();
+        if (displayManager != null) {
+            displayManager.reload();
+        }
         getLogger().info("All configurations reloaded.");
     }
 

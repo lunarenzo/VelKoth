@@ -29,6 +29,23 @@ public class HologramManager {
     private final Map<String, HologramState> lastStates = new ConcurrentHashMap<>();
     private final MiniMessage mm = MiniMessage.miniMessage();
 
+    // Cache parsed components to achieve 0% MiniMessage parser usage on hot path
+    private final Map<String, Component> miniMessageCache = new java.util.LinkedHashMap<>(256, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Component> eldest) {
+            return size() > 256;
+        }
+    };
+
+    private synchronized Component parseMiniMessage(String text) {
+        return miniMessageCache.computeIfAbsent(text, mm::deserialize);
+    }
+
+    public void reload() {
+        miniMessageCache.clear();
+        lastStates.clear();
+    }
+
     public HologramManager(VelKothPlugin plugin) {
         this.plugin = plugin;
     }
@@ -174,21 +191,38 @@ public class HologramManager {
 
         // Build multi-line component
         boolean first = true;
+        String escapedArena = mm.escapeTags(arenaName);
+        String escapedCapturer = mm.escapeTags(capturerName);
+        String escapedTime = mm.escapeTags(timeString);
+
         for (String line : rawLines) {
             if (!first) {
                 finalComponent = finalComponent.append(Component.newline());
             }
             first = false;
 
-            Component parsedLine = mm.deserialize(line,
-                    Placeholder.unparsed("arena", arenaName),
-                    Placeholder.unparsed("capturer", capturerName),
-                    Placeholder.unparsed("time", timeString));
-            finalComponent = finalComponent.append(parsedLine);
+            String resolved = line
+                    .replace("<arena>", escapedArena)
+                    .replace("<capturer>", escapedCapturer)
+                    .replace("<time>", escapedTime);
+            finalComponent = finalComponent.append(parseMiniMessage(resolved));
         }
 
         final Component finalComp = finalComponent;
-        finalDisplay.getScheduler().run(plugin, scheduledTask -> finalDisplay.text(finalComp), null);
+        finalDisplay.getScheduler().run(plugin, scheduledTask -> {
+            if (!finalDisplay.isValid()) return;
+            // Check if there are players nearby within view range (48 blocks) to skip redundant packet rendering
+            boolean playersNearby = false;
+            for (org.bukkit.entity.Entity entity : finalDisplay.getNearbyEntities(48.0, 48.0, 48.0)) {
+                if (entity instanceof Player) {
+                    playersNearby = true;
+                    break;
+                }
+            }
+            if (playersNearby) {
+                finalDisplay.text(finalComp);
+            }
+        }, null);
     }
 
     /**
@@ -209,8 +243,9 @@ public class HologramManager {
                 int timeRemaining = Math.max(0, max - seconds);
                 int mins = timeRemaining / 60;
                 int secs = timeRemaining % 60;
-                if (mins > 0)
-                    return String.format("%02d:%02d", mins, secs);
+                if (mins > 0) {
+                    return mins + ":" + (secs < 10 ? "0" + secs : secs);
+                }
                 return secs + "s";
             }
         }

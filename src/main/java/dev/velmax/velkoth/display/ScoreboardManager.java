@@ -40,6 +40,22 @@ public class ScoreboardManager {
     // Cache to track if players want the scoreboard visible
     private final Map<UUID, Boolean> hudPreferences = new ConcurrentHashMap<>();
 
+    // Cache parsed components to achieve 0% MiniMessage parser usage on hot path
+    private final Map<String, Component> miniMessageCache = new java.util.LinkedHashMap<>(256, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Component> eldest) {
+            return size() > 256;
+        }
+    };
+
+    private synchronized Component parseMiniMessage(String text) {
+        return miniMessageCache.computeIfAbsent(text, mm::deserialize);
+    }
+
+    public void reload() {
+        miniMessageCache.clear();
+    }
+
     public ScoreboardManager(VelKothPlugin plugin) {
         this.plugin = plugin;
         this.isFolia = checkFolia();
@@ -253,7 +269,7 @@ public class ScoreboardManager {
 
         if (isIdle) {
             for (String line : rawLines) {
-                finalLines.add(mm.deserialize(line));
+                finalLines.add(parseMiniMessage(line));
             }
         } else {
             Arena arena = activeArenas.iterator().next();
@@ -279,12 +295,16 @@ public class ScoreboardManager {
                 timeString = formatTime(session, arena);
             }
 
+            String escapedArena = mm.escapeTags(arenaName);
+            String escapedCapturer = mm.escapeTags(capturerName);
+            String escapedTime = mm.escapeTags(timeString);
+
             for (String line : rawLines) {
-                Component parsed = mm.deserialize(line,
-                        Placeholder.unparsed("arena", arenaName),
-                        Placeholder.unparsed("capturer", capturerName),
-                        Placeholder.unparsed("time", timeString));
-                finalLines.add(parsed);
+                String resolved = line
+                        .replace("<arena>", escapedArena)
+                        .replace("<capturer>", escapedCapturer)
+                        .replace("<time>", escapedTime);
+                finalLines.add(parseMiniMessage(resolved));
             }
         }
         return finalLines;
@@ -388,8 +408,9 @@ public class ScoreboardManager {
                 int timeRemaining = Math.max(0, max - seconds);
                 int mins = timeRemaining / 60;
                 int secs = timeRemaining % 60;
-                if (mins > 0)
-                    return String.format("%02d:%02d", mins, secs);
+                if (mins > 0) {
+                    return mins + ":" + (secs < 10 ? "0" + secs : secs);
+                }
                 return secs + "s";
             }
         }

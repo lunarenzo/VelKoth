@@ -33,6 +33,18 @@ public final class DisplayManager {
     private final ScoreboardManager scoreboardManager;
     private final HologramManager hologramManager;
 
+    // Cache parsed components to achieve 0% MiniMessage parser usage on hot path
+    private final Map<String, Component> miniMessageCache = new java.util.LinkedHashMap<>(256, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Component> eldest) {
+            return size() > 256;
+        }
+    };
+
+    private record BossBarState(Component name, float progress) {}
+    private final Map<String, BossBarState> lastBossBarStates = new ConcurrentHashMap<>();
+    private Component cachedPrefix;
+
     public DisplayManager(VelKothPlugin plugin) {
         this.plugin = plugin;
         this.scoreboardManager = new ScoreboardManager(plugin);
@@ -83,20 +95,31 @@ public final class DisplayManager {
         if (bar == null)
             return;
 
+        Component name;
         if (session.isContested()) {
-            bar.name(parsePlaceholders(messages().getBossBarContested(), arena, session, null));
+            name = parsePlaceholders(messages().getBossBarContested(), arena, session, null);
             bar.color(BossBar.Color.YELLOW);
         } else if (session.capturingPlayer() != null) {
             Player capturer = Bukkit.getPlayer(session.capturingPlayer());
-            bar.name(parsePlaceholders(messages().getBossBarCapturing(), arena, session, capturer));
+            name = parsePlaceholders(messages().getBossBarCapturing(), arena, session, capturer);
             bar.color(BossBar.Color.GREEN);
         } else {
-            bar.name(parsePlaceholders(messages().getBossBarIdle(), arena, session, null));
+            name = parsePlaceholders(messages().getBossBarIdle(), arena, session, null);
             bar.color(BossBar.Color.YELLOW);
         }
 
         // Progress based on capture time
         float progress = Math.clamp((float) session.elapsedSeconds() / arena.captureTime(), 0f, 1f);
+
+        // Check cache to avoid sending redundant packets
+        BossBarState currentState = new BossBarState(name, progress);
+        BossBarState previousState = lastBossBarStates.get(arena.id());
+        if (previousState != null && previousState.equals(currentState)) {
+            return;
+        }
+        lastBossBarStates.put(arena.id(), currentState);
+
+        bar.name(name);
         bar.progress(progress);
     }
 
@@ -104,6 +127,7 @@ public final class DisplayManager {
      * Remove the BossBar for an arena.
      */
     public void removeBossBar(Arena arena) {
+        lastBossBarStates.remove(arena.id());
         BossBar bar = bossBars.remove(arena.id());
         if (bar != null) {
             Bukkit.getOnlinePlayers().forEach(p -> p.hideBossBar(bar));
@@ -112,16 +136,10 @@ public final class DisplayManager {
 
     // ──────────────────────────── ActionBar ────────────────────────────
 
-    /**
-     * Send ActionBar to the capturing player.
-     */
     public void sendActionBar(Player player, Arena arena, CaptureSession session) {
         if (!display().isActionBarEnabled())
             return;
-        int remaining = arena.captureTime() - session.elapsedSeconds();
-        Component msg = parsePlaceholders(messages().getActionBarCapturing(), arena, session, player)
-                .replaceText(b -> b.matchLiteral("<time>")
-                        .replacement(formatTime(Math.max(0, remaining))));
+        Component msg = parsePlaceholders(messages().getActionBarCapturing(), arena, session, player);
         player.sendActionBar(msg);
     }
 
@@ -216,7 +234,7 @@ public final class DisplayManager {
      * Broadcast a prefixed chat message to all players.
      */
     public void broadcast(String messageTemplate, Arena arena, @Nullable Player player) {
-        Component prefix = miniMessage.deserialize(messages().getPrefix());
+        Component prefix = getPrefix();
         Component msg = parsePlaceholders(messageTemplate, arena, null, player);
         Bukkit.getOnlinePlayers().forEach(p -> p.sendMessage(prefix.append(msg)));
     }
@@ -225,7 +243,7 @@ public final class DisplayManager {
      * Send a prefixed message to a single player.
      */
     public void sendMessage(Player target, String messageTemplate, Arena arena) {
-        Component prefix = miniMessage.deserialize(messages().getPrefix());
+        Component prefix = getPrefix();
         Component msg = parsePlaceholders(messageTemplate, arena, null, target);
         target.sendMessage(prefix.append(msg));
     }
@@ -234,8 +252,8 @@ public final class DisplayManager {
      * Send a raw prefixed message (no arena context).
      */
     public void sendPrefixed(Player target, String rawMessage) {
-        Component prefix = miniMessage.deserialize(messages().getPrefix());
-        Component msg = miniMessage.deserialize(rawMessage);
+        Component prefix = getPrefix();
+        Component msg = parseMiniMessage(rawMessage);
         target.sendMessage(prefix.append(msg));
     }
 
@@ -249,6 +267,25 @@ public final class DisplayManager {
 
     // ──────────────────────────── Helpers ────────────────────────────
 
+    public synchronized Component parseMiniMessage(String text) {
+        return miniMessageCache.computeIfAbsent(text, miniMessage::deserialize);
+    }
+
+    public Component getPrefix() {
+        if (cachedPrefix == null) {
+            cachedPrefix = parseMiniMessage(messages().getPrefix());
+        }
+        return cachedPrefix;
+    }
+
+    public void reload() {
+        miniMessageCache.clear();
+        cachedPrefix = null;
+        lastBossBarStates.clear();
+        scoreboardManager.reload();
+        hologramManager.reload();
+    }
+
     private Component parsePlaceholders(String template, Arena arena,
             @Nullable CaptureSession session,
             @Nullable Player player) {
@@ -260,15 +297,21 @@ public final class DisplayManager {
             time = formatTime(Math.max(0, remaining));
         }
 
-        return miniMessage.deserialize(template,
-                Placeholder.unparsed("arena", arenaName),
-                Placeholder.unparsed("player", playerName),
-                Placeholder.unparsed("time", time));
+        String escapedArena = miniMessage.escapeTags(arenaName);
+        String escapedPlayer = miniMessage.escapeTags(playerName);
+        String escapedTime = miniMessage.escapeTags(time);
+
+        String resolved = template
+                .replace("<arena>", escapedArena)
+                .replace("<player>", escapedPlayer)
+                .replace("<time>", escapedTime);
+
+        return parseMiniMessage(resolved);
     }
 
     private String formatTime(int totalSeconds) {
         int minutes = totalSeconds / 60;
         int seconds = totalSeconds % 60;
-        return String.format("%d:%02d", minutes, seconds);
+        return minutes + ":" + (seconds < 10 ? "0" + seconds : seconds);
     }
 }

@@ -22,8 +22,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class HologramManager {
 
+    private record HologramState(String arenaName, String capturerName, String timeString) {}
+
     private final VelKothPlugin plugin;
     private final Map<String, TextDisplay> holograms = new ConcurrentHashMap<>();
+    private final Map<String, HologramState> lastStates = new ConcurrentHashMap<>();
     private final MiniMessage mm = MiniMessage.miniMessage();
 
     public HologramManager(VelKothPlugin plugin) {
@@ -61,6 +64,7 @@ public class HologramManager {
             if (existing != null && existing.isValid()) {
                 existing.remove();
             }
+            lastStates.remove(arena.id());
 
             TextDisplay display = center.getWorld().spawn(center, TextDisplay.class, entity -> {
                 entity.setBillboard(Display.Billboard.CENTER);
@@ -84,6 +88,7 @@ public class HologramManager {
 
     public void remove(String arenaId) {
         TextDisplay display = holograms.remove(arenaId);
+        lastStates.remove(arenaId);
         if (display != null && display.isValid()) {
             if (plugin.isEnabled()) {
                 display.getScheduler().run(plugin, scheduledTask -> display.remove(), null);
@@ -158,6 +163,14 @@ public class HologramManager {
         }
 
         timeString = formatTime(session, arena);
+
+        // Check cache to avoid MiniMessage parsing and text metadata packet spamming if values are identical
+        HologramState currentState = new HologramState(arenaName, capturerName, timeString);
+        HologramState previousState = lastStates.get(arena.id());
+        if (previousState != null && previousState.equals(currentState)) {
+            return;
+        }
+        lastStates.put(arena.id(), currentState);
 
         // Build multi-line component
         boolean first = true;

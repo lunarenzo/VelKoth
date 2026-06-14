@@ -115,6 +115,14 @@ public final class KothCommand {
                 .senderType(PlayerSource.class)
                 .handler(ctx -> handleStats(ctx.sender().source())));
 
+        manager.command(base.literal("toggle")
+                .senderType(PlayerSource.class)
+                .handler(ctx -> handleToggle(ctx.sender().source())));
+
+        manager.command(base.literal("hud")
+                .senderType(PlayerSource.class)
+                .handler(ctx -> handleToggle(ctx.sender().source())));
+
         manager.command(base.literal("reload")
                 .permission("velkoth.admin")
                 .handler(ctx -> handleReload(ctx.sender().source())));
@@ -433,6 +441,10 @@ public final class KothCommand {
         });
     }
 
+    private void handleToggle(Player player) {
+        plugin.getDisplayManager().getScoreboardManager().toggleHud(player);
+    }
+
     // ── Schedule ──
 
     private void handleScheduleAdd(CommandSender sender, DayOfWeek day, String timeStr, String arenaId) {
@@ -695,6 +707,7 @@ public final class KothCommand {
         sendPrefixed(sender,
                 " <gold>/koth next <name></gold> <dark_gray>-</dark_gray> <gray>Check when an arena starts next");
         sendPrefixed(sender, " <gold>/koth stats</gold> <dark_gray>-</dark_gray> <gray>View your stats");
+        sendPrefixed(sender, " <gold>/koth toggle</gold> <dark_gray>-</dark_gray> <gray>Toggle Scoreboard HUD visibility");
         sendPrefixed(sender, " <gold>/koth reload</gold> <dark_gray>-</dark_gray> <gray>Reload configuration");
         sendPrefixed(sender, "");
         sendPrefixed(sender, " <gold>/koth schedule remove <index></gold>");

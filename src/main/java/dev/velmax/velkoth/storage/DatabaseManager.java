@@ -118,6 +118,13 @@ public final class DatabaseManager {
     }
 
     /**
+     * Get a metadata value asynchronously.
+     */
+    public CompletableFuture<String> getMetadata(String key) {
+        return CompletableFuture.supplyAsync(() -> getMetadataSync(key));
+    }
+
+    /**
      * Save a metadata value asynchronously.
      */
     public CompletableFuture<Void> setMetadata(String key, String value) {

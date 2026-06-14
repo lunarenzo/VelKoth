@@ -37,6 +37,9 @@ public class ScoreboardManager {
     private Method tabGetPlayer;
     private Method tabSetScoreboardVisible;
 
+    // Cache to track if players want the scoreboard visible
+    private final Map<UUID, Boolean> hudPreferences = new ConcurrentHashMap<>();
+
     public ScoreboardManager(VelKothPlugin plugin) {
         this.plugin = plugin;
         this.isFolia = checkFolia();
@@ -75,6 +78,7 @@ public class ScoreboardManager {
 
     /**
      * Initializes a scoreboard for a newly joined player.
+     * Loads player preference asynchronously from database.
      * 
      * @param player the player
      */
@@ -82,19 +86,27 @@ public class ScoreboardManager {
         if (!plugin.getPluginConfig().getDisplay().isScoreboardEnabled())
             return;
 
-        boolean isIdle = plugin.getArenaManager().getActiveArenas().isEmpty();
-        if (isIdle && !plugin.getPluginConfig().getDisplay().isShowIdleScoreboard()) {
-            // Don't create the board yet, wait for an event
-            return;
+        UUID uuid = player.getUniqueId();
+        // Load preference asynchronously if not cached
+        if (!hudPreferences.containsKey(uuid)) {
+            plugin.getDatabaseManager().getMetadata(uuid + "_hud_enabled").thenAccept(value -> {
+                boolean enabled = value == null || Boolean.parseBoolean(value);
+                hudPreferences.put(uuid, enabled);
+                runOnPlayerThread(player, () -> {
+                    if (player.isOnline()) {
+                        java.util.Collection<Arena> activeArenas = plugin.getArenaManager().getActiveArenas();
+                        updatePlayerBoard(player, prebuildLines(activeArenas), activeArenas);
+                    }
+                });
+            });
+        } else {
+            runOnPlayerThread(player, () -> {
+                if (player.isOnline()) {
+                    java.util.Collection<Arena> activeArenas = plugin.getArenaManager().getActiveArenas();
+                    updatePlayerBoard(player, prebuildLines(activeArenas), activeArenas);
+                }
+            });
         }
-
-        FastBoard board = new FastBoard(player);
-        String titleString = plugin.getMessages().getScoreboardTitle();
-        board.updateTitle(mm.deserialize(titleString));
-        boards.put(player.getUniqueId(), board);
-
-        pauseOtherScoreboards(player);
-        updateBoard(player);
     }
 
     /**
@@ -103,7 +115,9 @@ public class ScoreboardManager {
      * @param player the player
      */
     public void removeBoard(Player player) {
-        FastBoard board = boards.remove(player.getUniqueId());
+        UUID uuid = player.getUniqueId();
+        hudPreferences.remove(uuid);
+        FastBoard board = boards.remove(uuid);
         if (board != null) {
             board.delete();
         }
@@ -111,98 +125,128 @@ public class ScoreboardManager {
     }
 
     /**
-     * Re-renders the scoreboard for a specific player.
-     * 
-     * @param player the player to update
+     * Toggles the HUD visibility preference for the player, saves it, and updates immediately.
      */
-    private void updateBoard(Player player) {
-        java.util.Collection<Arena> activeArenas = plugin.getArenaManager().getActiveArenas();
-        boolean isIdle = activeArenas.isEmpty();
+    public void toggleHud(Player player) {
+        UUID uuid = player.getUniqueId();
+        boolean current = hudPreferences.getOrDefault(uuid, Boolean.TRUE);
+        boolean nextState = !current;
+        hudPreferences.put(uuid, nextState);
 
-        if (isIdle && !plugin.getPluginConfig().getDisplay().isShowIdleScoreboard()) {
-            FastBoard existing = boards.remove(player.getUniqueId());
+        // Async save to database metadata
+        plugin.getDatabaseManager().setMetadata(uuid + "_hud_enabled", String.valueOf(nextState));
+
+        // Display feedback
+        if (nextState) {
+            plugin.getDisplayManager().sendPrefixed(player, "<green>KOTH Scoreboard HUD has been enabled.</green>");
+        } else {
+            plugin.getDisplayManager().sendPrefixed(player, "<red>KOTH Scoreboard HUD has been disabled.</red>");
+        }
+
+        // Apply change immediately on the player thread
+        runOnPlayerThread(player, () -> {
+            if (player.isOnline()) {
+                java.util.Collection<Arena> activeArenas = plugin.getArenaManager().getActiveArenas();
+                updatePlayerBoard(player, prebuildLines(activeArenas), activeArenas);
+            }
+        });
+    }
+
+    /**
+     * Utility helper to safely schedule player updates.
+     */
+    private void runOnPlayerThread(Player player, Runnable runnable) {
+        if (isFolia) {
+            player.getScheduler().run(plugin, task -> runnable.run(), null);
+        } else {
+            runnable.run();
+        }
+    }
+
+    /**
+     * Checks if a player qualifies to see the scoreboard based on contextual world & proximity rules.
+     */
+    private boolean shouldShowScoreboard(Player player, java.util.Collection<Arena> activeArenas) {
+        if (activeArenas.isEmpty()) {
+            return plugin.getPluginConfig().getDisplay().isShowIdleScoreboard();
+        }
+
+        var displaySettings = plugin.getPluginConfig().getDisplay();
+        boolean onlyInWorld = displaySettings.isScoreboardOnlyInArenaWorld();
+        double proximityRadius = displaySettings.getScoreboardProximityRadius();
+
+        if (!onlyInWorld && proximityRadius <= 0) {
+            return true;
+        }
+
+        for (Arena arena : activeArenas) {
+            if (arena.region() == null || arena.region().getWorld() == null) {
+                continue;
+            }
+
+            // Check world matching
+            if (onlyInWorld && !player.getWorld().equals(arena.region().getWorld())) {
+                continue;
+            }
+
+            // Check proximity (distance squared optimization)
+            if (proximityRadius > 0) {
+                if (!player.getWorld().equals(arena.region().getWorld())) {
+                    continue;
+                }
+                double distSq = player.getLocation().distanceSquared(arena.region().getCenter());
+                if (distSq > proximityRadius * proximityRadius) {
+                    continue;
+                }
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Handles creation, updates, and deletion logic for a single player's board.
+     * MUST run on the player's thread (which is guaranteed by the callers).
+     */
+    private void updatePlayerBoard(Player player, List<Component> finalLines, java.util.Collection<Arena> activeArenas) {
+        UUID uuid = player.getUniqueId();
+        Boolean preference = hudPreferences.get(uuid);
+        
+        // If preference is not cached yet, createBoard has been/will be called
+        if (preference == null) {
+            return;
+        }
+
+        // If player has manually disabled the HUD or fails contextual checks, delete/hide board
+        if (!preference || !shouldShowScoreboard(player, activeArenas)) {
+            FastBoard existing = boards.remove(uuid);
             if (existing != null) {
                 existing.delete();
                 resumeOtherScoreboards(player);
             }
-            return; // Don't show inactive board
+            return;
         }
 
-        FastBoard board = boards.get(player.getUniqueId());
+        // Retrieve or initialize FastBoard
+        FastBoard board = boards.get(uuid);
         if (board == null || board.isDeleted()) {
-            createBoard(player);
-            board = boards.get(player.getUniqueId());
-            if (board == null)
-                return;
-        }
-
-        List<String> rawLines = isIdle ? plugin.getMessages().getScoreboardLinesIdle() 
-                                       : plugin.getMessages().getScoreboardLinesActive();
-        List<Component> finalLines = new ArrayList<>(rawLines.size());
-
-        if (isIdle) {
-            for (String line : rawLines) {
-                finalLines.add(mm.deserialize(line));
-            }
-        } else {
-            Arena arena = activeArenas.iterator().next();
-            CaptureSession session = plugin.getCaptureManager().getSession(arena.id());
-
-            String arenaName = arena.displayName();
-            String capturerName = "None";
-            String timeString = "0s";
-
-            if (session != null) {
-                if (session.isContested()) {
-                    capturerName = plugin.getMessages().getCaptureContested();
-                } else if (session.capturingPlayer() != null) {
-                    Player capPlayer = Bukkit.getPlayer(session.capturingPlayer());
-                    if (capPlayer != null) {
-                        capturerName = capPlayer.getName();
-                        String team = plugin.getTeamManager().getTeamName(capPlayer);
-                        if (team != null && !team.isEmpty()) {
-                            capturerName = capturerName + " [" + team + "]";
-                        }
-                    }
-                }
-                timeString = formatTime(session, arena);
-            }
-
-            for (String line : rawLines) {
-                Component parsed = mm.deserialize(line,
-                        Placeholder.unparsed("arena", arenaName),
-                        Placeholder.unparsed("capturer", capturerName),
-                        Placeholder.unparsed("time", timeString));
-                finalLines.add(parsed);
-            }
+            board = new FastBoard(player);
+            String titleString = plugin.getMessages().getScoreboardTitle();
+            board.updateTitle(mm.deserialize(titleString));
+            boards.put(uuid, board);
+            pauseOtherScoreboards(player);
         }
 
         board.updateLines(finalLines);
     }
 
     /**
-     * Updates the scoreboards of all online players.
-     * Pre-builds lines once to achieve efficient O(1) scaling relative to player count.
+     * Pre-builds scoreboard lines once to scale in O(1) time complexity.
      */
-    public void updateAll() {
-        if (!plugin.getPluginConfig().getDisplay().isScoreboardEnabled())
-            return;
-
-        java.util.Collection<Arena> activeArenas = plugin.getArenaManager().getActiveArenas();
+    private List<Component> prebuildLines(java.util.Collection<Arena> activeArenas) {
         boolean isIdle = activeArenas.isEmpty();
-
-        if (isIdle && !plugin.getPluginConfig().getDisplay().isShowIdleScoreboard()) {
-            // Remove boards for all players if idle and idle scoreboard is disabled
-            for (Player player : Bukkit.getOnlinePlayers()) {
-                FastBoard existing = boards.remove(player.getUniqueId());
-                if (existing != null) {
-                    existing.delete();
-                    resumeOtherScoreboards(player);
-                }
-            }
-            return;
-        }
-
         List<String> rawLines = isIdle ? plugin.getMessages().getScoreboardLinesIdle() 
                                        : plugin.getMessages().getScoreboardLinesActive();
         List<Component> finalLines = new ArrayList<>(rawLines.size());
@@ -243,16 +287,26 @@ public class ScoreboardManager {
                 finalLines.add(parsed);
             }
         }
+        return finalLines;
+    }
+
+    /**
+     * Updates the scoreboards of all online players.
+     * Safely runs each update on the player's region thread.
+     */
+    public void updateAll() {
+        if (!plugin.getPluginConfig().getDisplay().isScoreboardEnabled())
+            return;
+
+        java.util.Collection<Arena> activeArenas = plugin.getArenaManager().getActiveArenas();
+        List<Component> finalLines = prebuildLines(activeArenas);
 
         for (Player player : Bukkit.getOnlinePlayers()) {
-            FastBoard board = boards.get(player.getUniqueId());
-            if (board == null || board.isDeleted()) {
-                createBoard(player);
-                board = boards.get(player.getUniqueId());
-                if (board == null)
-                    continue;
-            }
-            board.updateLines(finalLines);
+            runOnPlayerThread(player, () -> {
+                if (player.isOnline()) {
+                    updatePlayerBoard(player, finalLines, activeArenas);
+                }
+            });
         }
     }
 

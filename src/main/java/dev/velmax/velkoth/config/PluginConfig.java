@@ -192,6 +192,19 @@ public class PluginConfig extends OkaeriConfig {
         })
         private boolean overrideOtherScoreboards = true;
 
+        @Comment({
+                "Should VelKoth only show the scoreboard to players in the same world as the active KOTH event?",
+                "This keeps the HUD player-friendly by not showing it to players in other worlds."
+        })
+        private boolean scoreboardOnlyInArenaWorld = true;
+
+        @Comment({
+                "Proximity radius in blocks around the KOTH hill center for showing the scoreboard.",
+                "If set to a positive value (e.g. 50.0), players must be within this distance from the hill to see the HUD.",
+                "Set to -1.0 to disable proximity radius checks."
+        })
+        private double scoreboardProximityRadius = -1.0;
+
         @Comment("Enable floating TextDisplay holograms above active hills")
         private boolean hologramEnabled = true;
 
@@ -228,6 +241,14 @@ public class PluginConfig extends OkaeriConfig {
 
         public boolean isOverrideOtherScoreboards() {
             return overrideOtherScoreboards;
+        }
+
+        public boolean isScoreboardOnlyInArenaWorld() {
+            return scoreboardOnlyInArenaWorld;
+        }
+
+        public double getScoreboardProximityRadius() {
+            return scoreboardProximityRadius;
         }
 
         public boolean isHologramEnabled() {

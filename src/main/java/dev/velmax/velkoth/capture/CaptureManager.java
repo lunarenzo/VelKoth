@@ -271,10 +271,8 @@ public final class CaptureManager {
                             new KothCaptureStopEvent(arena, capturer, KothCaptureStopEvent.Reason.CONTESTED));
                 }
             }
-        }
 
-        // Show contested feedback — throttle to every 3 seconds to avoid spam
-        if (session.elapsedSeconds() % 3 == 0) {
+            // Show contested title & sound ONCE on transition to avoid PvP screen obstruction
             for (Player p : players) {
                 plugin.getDisplayManager().showContestedTitle(p, arena);
                 plugin.getDisplayManager().playContestedSound(p);

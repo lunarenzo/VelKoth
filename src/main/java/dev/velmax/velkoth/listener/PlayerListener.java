@@ -65,7 +65,7 @@ public final class PlayerListener implements Listener {
             }
 
             CaptureSession session = plugin.getCaptureManager().getSession(arena.id());
-            if (session == null || session.capturingPlayer() == null || session.isContested()) {
+            if (session == null || session.capturingPlayer() == null) {
                 continue;
             }
 

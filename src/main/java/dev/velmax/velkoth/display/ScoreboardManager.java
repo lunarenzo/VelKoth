@@ -263,8 +263,18 @@ public class ScoreboardManager {
      */
     private List<Component> prebuildLines(java.util.Collection<Arena> activeArenas) {
         boolean isIdle = activeArenas.isEmpty();
-        List<String> rawLines = isIdle ? plugin.getMessages().getScoreboardLinesIdle() 
-                                       : plugin.getMessages().getScoreboardLinesActive();
+        List<String> rawLines;
+        Arena activeArena = null;
+
+        if (isIdle) {
+            rawLines = plugin.getMessages().getScoreboardLinesIdle();
+        } else {
+            activeArena = activeArenas.iterator().next();
+            rawLines = activeArena.captureMode() == Arena.CaptureMode.SCORE 
+                    ? plugin.getMessages().getScoreboardLinesActiveScore() 
+                    : plugin.getMessages().getScoreboardLinesActive();
+        }
+
         List<Component> finalLines = new ArrayList<>(rawLines.size());
 
         if (isIdle) {
@@ -272,7 +282,7 @@ public class ScoreboardManager {
                 finalLines.add(parseMiniMessage(line));
             }
         } else {
-            Arena arena = activeArenas.iterator().next();
+            Arena arena = activeArena;
             CaptureSession session = plugin.getCaptureManager().getSession(arena.id());
 
             String arenaName = arena.displayName();

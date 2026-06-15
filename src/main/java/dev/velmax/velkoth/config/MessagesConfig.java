@@ -69,6 +69,9 @@ public class MessagesConfig extends OkaeriConfig {
     @Comment("ActionBar text during capture")
     private String actionBarCapturing = "<green>Capturing: <white><time></white> remaining";
 
+    @Comment("ActionBar text during SCORE mode capture")
+    private String actionBarCapturingScore = "<green>Capturing: <white><time></white> points";
+
     // ── Scoreboard ──
     @Comment("Scoreboard title")
     private String scoreboardTitle = "<gradient:#ff6b6b:#ffa500><bold>VelMax KoTH</bold></gradient>";
@@ -80,6 +83,15 @@ public class MessagesConfig extends OkaeriConfig {
             "",
             "<white>Status: <yellow><capturer></yellow>",
             "<white>Time: <green><time></green>",
+            "<gray>----------------------");
+
+    @Comment("Scoreboard lines when a SCORE mode arena is active")
+    private java.util.List<String> scoreboardLinesActiveScore = java.util.List.of(
+            "<gray>----------------------",
+            "<white>Arena: <gold><arena></gold>",
+            "",
+            "<white>Leader: <yellow><capturer></yellow>",
+            "<white>Score: <green><time></green>",
             "<gray>----------------------");
 
     @Comment("Scoreboard lines when no arena is active")
@@ -95,6 +107,12 @@ public class MessagesConfig extends OkaeriConfig {
             "<gradient:#ff6b6b:#ffa500><bold><arena> KoTH</bold></gradient>",
             "<white>Status: <yellow><capturer></yellow>",
             "<white>Time: <green><time></green>");
+
+    @Comment("Hologram lines displayed above the active hill in SCORE mode")
+    private java.util.List<String> hologramLinesScore = java.util.List.of(
+            "<gradient:#ff6b6b:#ffa500><bold><arena> KoTH</bold></gradient>",
+            "<white>Leader: <yellow><capturer></yellow>",
+            "<white>Score: <green><time></green>");
 
     // ── Admin ──
     @Comment("Arena created")
@@ -223,6 +241,10 @@ public class MessagesConfig extends OkaeriConfig {
         return actionBarCapturing;
     }
 
+    public String getActionBarCapturingScore() {
+        return actionBarCapturingScore;
+    }
+
     public String getScoreboardTitle() {
         return scoreboardTitle;
     }
@@ -231,12 +253,20 @@ public class MessagesConfig extends OkaeriConfig {
         return scoreboardLinesActive;
     }
 
+    public java.util.List<String> getScoreboardLinesActiveScore() {
+        return scoreboardLinesActiveScore;
+    }
+
     public java.util.List<String> getScoreboardLinesIdle() {
         return scoreboardLinesIdle;
     }
 
     public java.util.List<String> getHologramLines() {
         return hologramLines;
+    }
+
+    public java.util.List<String> getHologramLinesScore() {
+        return hologramLinesScore;
     }
 
     public String getArenaCreated() {

@@ -159,7 +159,9 @@ public class HologramManager {
             return;
         }
 
-        List<String> rawLines = plugin.getMessages().getHologramLines();
+        List<String> rawLines = arena.captureMode() == Arena.CaptureMode.SCORE 
+                ? plugin.getMessages().getHologramLinesScore() 
+                : plugin.getMessages().getHologramLines();
         Component finalComponent = Component.empty();
 
         String arenaName = arena.displayName();

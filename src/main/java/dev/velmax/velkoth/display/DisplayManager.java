@@ -145,7 +145,10 @@ public final class DisplayManager {
     public void sendActionBar(Player player, Arena arena, CaptureSession session) {
         if (!display().isActionBarEnabled())
             return;
-        Component msg = parsePlaceholders(messages().getActionBarCapturing(), arena, session, player);
+        String template = arena.captureMode() == Arena.CaptureMode.SCORE 
+                ? messages().getActionBarCapturingScore() 
+                : messages().getActionBarCapturing();
+        Component msg = parsePlaceholders(template, arena, session, player);
         player.sendActionBar(msg);
     }
 

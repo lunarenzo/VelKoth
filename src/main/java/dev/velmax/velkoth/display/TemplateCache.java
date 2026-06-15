@@ -1,82 +1,99 @@
 package dev.velmax.velkoth.display;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Cache for pre-parsed MiniMessage templates. Resolves placeholders
- * dynamically by walking the component tree, achieving near 0% CPU overhead.
+ * Cache for pre-rendered MiniMessage components. Resolves dynamic placeholders
+ * natively via TagResolvers to ensure perfect layout/gradient styling. Caches the
+ * resulting component trees based on their resolved state to achieve near-zero CPU overhead.
  */
 public final class TemplateCache {
 
-    private final Map<String, Component> templates = new ConcurrentHashMap<>();
     private final MiniMessage mm = MiniMessage.miniMessage();
-    private final TagResolver preParseResolvers = TagResolver.builder()
-            .resolver(Placeholder.component("arena", Component.text("%%ARENA%%")))
-            .resolver(Placeholder.component("player", Component.text("%%PLAYER%%")))
-            .resolver(Placeholder.component("time", Component.text("%%TIME%%")))
-            .resolver(Placeholder.component("capturer", Component.text("%%CAPTURER%%")))
-            .build();
 
-    public Component getTemplate(String rawTemplate) {
-        if (rawTemplate == null) {
+    // Bounded thread-safe LRU cache for rendered components
+    private final Map<ResolutionKey, Component> cache = java.util.Collections.synchronizedMap(
+            new java.util.LinkedHashMap<>(512, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<ResolutionKey, Component> eldest) {
+                    return size() > 512;
+                }
+            }
+    );
+
+    /**
+     * Cache key for placeholder resolution state.
+     */
+    public record ResolutionKey(
+            String template,
+            @Nullable String arena,
+            @Nullable String player,
+            @Nullable String time,
+            @Nullable String capturer
+    ) {}
+
+    /**
+     * Resolves dynamic placeholders in a MiniMessage template string.
+     * Uses a high-performance cache to avoid re-parsing identical states.
+     *
+     * @param template The raw MiniMessage template string
+     * @param arena    The arena display name, or null
+     * @param player   The player name, or null
+     * @param time     The time string, or null
+     * @param capturer The capturer name, or null
+     * @return The fully resolved and rendered Adventure Component
+     */
+    public Component resolve(
+            @Nullable String template,
+            @Nullable String arena,
+            @Nullable String player,
+            @Nullable String time,
+            @Nullable String capturer
+    ) {
+        if (template == null || template.isEmpty()) {
             return Component.empty();
         }
-        return templates.computeIfAbsent(rawTemplate, t -> mm.deserialize(t, preParseResolvers));
-    }
 
-    public void clear() {
-        templates.clear();
+        var key = new ResolutionKey(template, arena, player, time, capturer);
+
+        // Fast path: cache hit
+        Component cached = cache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+
+        // Slow path: resolve placeholders natively during deserialization
+        // This ensures tags (e.g. <arena>) inside gradients/styles are sized and colored perfectly.
+        TagResolver.Builder builder = TagResolver.builder();
+
+        if (arena != null) {
+            builder.resolver(Placeholder.unparsed("arena", arena));
+        }
+        if (player != null) {
+            builder.resolver(Placeholder.unparsed("player", player));
+        }
+        if (time != null) {
+            builder.resolver(Placeholder.unparsed("time", time));
+        }
+        if (capturer != null) {
+            builder.resolver(Placeholder.unparsed("capturer", capturer));
+        }
+
+        Component rendered = mm.deserialize(template, builder.build());
+        cache.put(key, rendered);
+        return rendered;
     }
 
     /**
-     * Resolves placeholders in a pre-parsed component tree recursively.
-     * Bypasses regex and MiniMessage parsing completely.
+     * Clears all cached resolutions.
      */
-    public Component resolve(Component component, String arena, String player, String time, String capturer) {
-        if (component instanceof TextComponent textComp) {
-            String content = textComp.content();
-            String newContent = content;
-            if (arena != null && newContent.contains("%%ARENA%%")) {
-                newContent = newContent.replace("%%ARENA%%", arena);
-            }
-            if (player != null && newContent.contains("%%PLAYER%%")) {
-                newContent = newContent.replace("%%PLAYER%%", player);
-            }
-            if (time != null && newContent.contains("%%TIME%%")) {
-                newContent = newContent.replace("%%TIME%%", time);
-            }
-            if (capturer != null && newContent.contains("%%CAPTURER%%")) {
-                newContent = newContent.replace("%%CAPTURER%%", capturer);
-            }
-
-            Component result = newContent.equals(content) ? textComp : textComp.content(newContent);
-
-            if (!component.children().isEmpty()) {
-                List<Component> newChildren = new ArrayList<>(component.children().size());
-                for (Component child : component.children()) {
-                    newChildren.add(resolve(child, arena, player, time, capturer));
-                }
-                result = result.children(newChildren);
-            }
-            return result;
-        } else {
-            if (!component.children().isEmpty()) {
-                List<Component> newChildren = new ArrayList<>(component.children().size());
-                for (Component child : component.children()) {
-                    newChildren.add(resolve(child, arena, player, time, capturer));
-                }
-                return component.children(newChildren);
-            }
-            return component;
-        }
+    public void clear() {
+        cache.clear();
     }
 }

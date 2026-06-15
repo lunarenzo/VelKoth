@@ -304,8 +304,7 @@ public final class DisplayManager {
             time = formatTime(Math.max(0, remaining));
         }
 
-        Component templateComponent = templateCache.getTemplate(template);
-        return templateCache.resolve(templateComponent, arenaName, playerName, time, null);
+        return templateCache.resolve(template, arenaName, playerName, time, null);
     }
 
     private String formatTime(int totalSeconds) {

@@ -199,8 +199,7 @@ public class HologramManager {
             }
             first = false;
 
-            Component templateComponent = templateCache.getTemplate(line);
-            Component parsedLine = templateCache.resolve(templateComponent, arenaName, null, timeString, capturerName);
+            Component parsedLine = templateCache.resolve(line, arenaName, null, timeString, capturerName);
             finalComponent = finalComponent.append(parsedLine);
         }
 

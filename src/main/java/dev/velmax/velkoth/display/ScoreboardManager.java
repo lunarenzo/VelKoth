@@ -297,8 +297,7 @@ public class ScoreboardManager {
 
             TemplateCache templateCache = plugin.getDisplayManager().getTemplateCache();
             for (String line : rawLines) {
-                Component templateComponent = templateCache.getTemplate(line);
-                Component parsedLine = templateCache.resolve(templateComponent, arenaName, null, timeString, capturerName);
+                Component parsedLine = templateCache.resolve(line, arenaName, null, timeString, capturerName);
                 finalLines.add(parsedLine);
             }
         }

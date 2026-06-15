@@ -88,8 +88,7 @@ public final class VelKothPlugin extends JavaPlugin {
         // 5.1 Test Template Cache resolving
         try {
             TemplateCache testCache = new TemplateCache();
-            Component testTemplate = testCache.getTemplate("<gradient:#ff6b6b:#ffa500><bold><arena> KoTH</bold></gradient>");
-            Component resolved = testCache.resolve(testTemplate, "TEST_ARENA_NAME", null, null, null);
+            Component resolved = testCache.resolve("<gradient:#ff6b6b:#ffa500><bold><arena> KoTH</bold></gradient>", "TEST_ARENA_NAME", null, null, null);
             getLogger().info("[TemplateCache Test] Resolved: " + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().serialize(resolved));
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "TemplateCache startup test failed", e);

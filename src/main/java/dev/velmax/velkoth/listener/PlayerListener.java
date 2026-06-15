@@ -99,10 +99,14 @@ public final class PlayerListener implements Listener {
                 int newScore = session.addScore(identifier, killBonus);
 
                 // Notify killer (and defender team) via message
-                String message = plugin.getMessages().getPrefix() + 
-                        "<green><bold>+" + killBonus + "</bold> Kill Bonus! <gray>(Defeated " + victim.getName() + ")</gray>";
+                String template = plugin.getMessages().getScoreKillBonus();
+                net.kyori.adventure.text.Component message = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(
+                        template,
+                        net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.unparsed("points", String.valueOf(killBonus)),
+                        net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.unparsed("victim", victim.getName())
+                );
                 
-                killer.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(message));
+                killer.sendMessage(plugin.getDisplayManager().getPrefix().append(message));
                 plugin.getDisplayManager().playTickSound(killer);
 
                 // Check win condition

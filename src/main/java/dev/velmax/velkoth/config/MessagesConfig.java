@@ -39,6 +39,9 @@ public class MessagesConfig extends OkaeriConfig {
     @Comment("Score mode — points earned")
     private String scorePoint = "<gray>+1 point <dark_gray>(<aqua><score></aqua>/<aqua><max></aqua>)</dark_gray>";
 
+    @Comment("Sent to a player when they get a kill bonus in score mode")
+    private String scoreKillBonus = "<green><bold>+<points></bold> Kill Bonus! <gray>(Defeated <victim>)</gray>";
+
     // ── Titles ──
     @Comment("Title shown on KoTH start")
     private String titleStart = "<gold><bold>KOTH</bold></gold>";
@@ -174,6 +177,10 @@ public class MessagesConfig extends OkaeriConfig {
 
     public String getScorePoint() {
         return scorePoint;
+    }
+
+    public String getScoreKillBonus() {
+        return scoreKillBonus;
     }
 
     public String getTitleStart() {

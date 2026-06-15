@@ -20,10 +20,10 @@ public final class TemplateCache {
     private final Map<String, Component> templates = new ConcurrentHashMap<>();
     private final MiniMessage mm = MiniMessage.miniMessage();
     private final TagResolver preParseResolvers = TagResolver.builder()
-            .resolver(Placeholder.unparsed("arena", "%%ARENA%%"))
-            .resolver(Placeholder.unparsed("player", "%%PLAYER%%"))
-            .resolver(Placeholder.unparsed("time", "%%TIME%%"))
-            .resolver(Placeholder.unparsed("capturer", "%%CAPTURER%%"))
+            .resolver(Placeholder.component("arena", Component.text("%%ARENA%%")))
+            .resolver(Placeholder.component("player", Component.text("%%PLAYER%%")))
+            .resolver(Placeholder.component("time", Component.text("%%TIME%%")))
+            .resolver(Placeholder.component("capturer", Component.text("%%CAPTURER%%")))
             .build();
 
     public Component getTemplate(String rawTemplate) {

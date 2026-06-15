@@ -18,6 +18,8 @@ import dev.velmax.velkoth.manager.DynamicTriggerManager;
 import dev.velmax.velkoth.team.TeamManager;
 import dev.velmax.velkoth.scheduler.SchedulerManager;
 import dev.velmax.velkoth.storage.DatabaseManager;
+import dev.velmax.velkoth.display.TemplateCache;
+import net.kyori.adventure.text.Component;
 import eu.okaeri.configs.ConfigManager;
 import eu.okaeri.configs.yaml.snakeyaml.YamlSnakeYamlConfigurer;
 import org.bstats.bukkit.Metrics;
@@ -81,6 +83,16 @@ public final class VelKothPlugin extends JavaPlugin {
         // 5. Load schedule
         schedulerManager.loadSchedule();
         dynamicTriggerManager.start();
+
+        // 5.1 Test Template Cache resolving
+        try {
+            TemplateCache testCache = new TemplateCache();
+            Component testTemplate = testCache.getTemplate("<gradient:#ff6b6b:#ffa500><bold><arena> KoTH</bold></gradient>");
+            Component resolved = testCache.resolve(testTemplate, "TEST_ARENA_NAME", null, null, null);
+            getLogger().info("[TemplateCache Test] Resolved: " + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().serialize(resolved));
+        } catch (Exception e) {
+            getLogger().log(Level.SEVERE, "TemplateCache startup test failed", e);
+        }
 
         // 6. Register commands
         new KothCommand(this);

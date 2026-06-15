@@ -389,10 +389,8 @@ public class ScoreboardManager {
         int max;
         switch (arena.captureMode()) {
             case SCORE -> {
-                // In SCORE mode, we don't have a specific player's score globally for the
-                // board,
-                // so we show the highest score or time remaining.
-                seconds = session.elapsedSeconds();
+                // In SCORE mode, show the capturing team/player's score.
+                seconds = plugin.getCaptureManager().getCapturingScore(session);
                 max = arena.maxScore();
                 return seconds + "/" + max;
             }

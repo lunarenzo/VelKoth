@@ -300,8 +300,13 @@ public final class DisplayManager {
         String playerName = player != null ? player.getName() : "None";
         String time = "0";
         if (session != null && arena != null) {
-            int remaining = arena.captureTime() - session.elapsedSeconds();
-            time = formatTime(Math.max(0, remaining));
+            if (arena.captureMode() == Arena.CaptureMode.SCORE) {
+                int score = plugin.getCaptureManager().getCapturingScore(session);
+                time = score + "/" + arena.maxScore();
+            } else {
+                int remaining = arena.captureTime() - session.elapsedSeconds();
+                time = formatTime(Math.max(0, remaining));
+            }
         }
 
         return templateCache.resolve(template, arenaName, playerName, time, null);

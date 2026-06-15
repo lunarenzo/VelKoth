@@ -7,6 +7,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.entity.Player;
+import java.util.UUID;
 
 /**
  * Handles player join/quit events for KoTH state management.
@@ -46,5 +48,68 @@ public final class PlayerListener implements Listener {
 
         // Check for dynamic player count triggers
         plugin.getDynamicTriggerManager().checkTrigger();
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onPlayerDeath(org.bukkit.event.entity.PlayerDeathEvent event) {
+        Player victim = event.getEntity();
+        Player killer = victim.getKiller();
+        if (killer == null) {
+            return;
+        }
+
+        // Check active SCORE mode arenas
+        for (Arena arena : plugin.getArenaManager().getActiveArenas()) {
+            if (arena.captureMode() != Arena.CaptureMode.SCORE) {
+                continue;
+            }
+
+            CaptureSession session = plugin.getCaptureManager().getSession(arena.id());
+            if (session == null || session.capturingPlayer() == null || session.isContested()) {
+                continue;
+            }
+
+            // Check if victim died inside the capture zone
+            if (!arena.region().contains(victim.getLocation())) {
+                continue;
+            }
+
+            // Check if the killer (or their team) is currently holding this hill
+            UUID capturingPlayerUuid = session.capturingPlayer();
+            if (capturingPlayerUuid == null) {
+                continue;
+            }
+
+            Player capturer = org.bukkit.Bukkit.getPlayer(capturingPlayerUuid);
+            if (capturer == null) {
+                continue;
+            }
+
+            boolean isDefender = killer.getUniqueId().equals(capturer.getUniqueId()) ||
+                    plugin.getTeamManager().isSameTeam(killer, capturer);
+
+            if (isDefender) {
+                int killBonus = plugin.getPluginConfig().getCaptureDefaults().getScoreKillBonus();
+                if (killBonus <= 0) {
+                    continue;
+                }
+
+                // Award points
+                String identifier = plugin.getCaptureManager().getScoreIdentifier(killer);
+                int newScore = session.addScore(identifier, killBonus);
+
+                // Notify killer (and defender team) via message
+                String message = plugin.getMessages().getPrefix() + 
+                        "<green><bold>+" + killBonus + "</bold> Kill Bonus! <gray>(Defeated " + victim.getName() + ")</gray>";
+                
+                killer.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(message));
+                plugin.getDisplayManager().playTickSound(killer);
+
+                // Check win condition
+                if (newScore >= arena.maxScore()) {
+                    plugin.getCaptureManager().handleWin(arena, session, killer);
+                }
+            }
+        }
     }
 }

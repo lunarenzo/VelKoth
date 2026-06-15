@@ -228,7 +228,7 @@ public class HologramManager {
         int max;
         switch (arena.captureMode()) {
             case SCORE -> {
-                seconds = session.elapsedSeconds();
+                seconds = plugin.getCaptureManager().getCapturingScore(session);
                 max = arena.maxScore();
                 return seconds + "/" + max;
             }

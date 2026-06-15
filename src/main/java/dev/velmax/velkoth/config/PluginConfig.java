@@ -140,6 +140,27 @@ public class PluginConfig extends OkaeriConfig {
         @Comment("Whether the hill becomes contested when multiple players are on it")
         private boolean contestEnabled = true;
 
+        @Comment("Score mode: base points awarded per second of holding the hill")
+        private int scoreBasePoints = 1;
+
+        @Comment("Score mode: enable holding streak multiplier")
+        private boolean scoreStreakEnabled = true;
+
+        @Comment("Score mode: consecutive seconds needed to increase multiplier level")
+        private int scoreStreakInterval = 10;
+
+        @Comment("Score mode: maximum multiplier level allowed")
+        private int scoreMaxMultiplier = 5;
+
+        @Comment("Score mode: bonus points for killing an enemy inside the hill")
+        private int scoreKillBonus = 5;
+
+        @Comment("Score mode: team coop multiplier bonus per additional teammate on the hill")
+        private double scoreTeamCoopBonus = 0.2;
+
+        @Comment("Score mode: maximum team coop multiplier")
+        private double scoreMaxCoopMultiplier = 2.0;
+
         public int getCaptureTime() {
             return captureTime;
         }
@@ -158,6 +179,34 @@ public class PluginConfig extends OkaeriConfig {
 
         public boolean isContestEnabled() {
             return contestEnabled;
+        }
+
+        public int getScoreBasePoints() {
+            return scoreBasePoints;
+        }
+
+        public boolean isScoreStreakEnabled() {
+            return scoreStreakEnabled;
+        }
+
+        public int getScoreStreakInterval() {
+            return scoreStreakInterval;
+        }
+
+        public int getScoreMaxMultiplier() {
+            return scoreMaxMultiplier;
+        }
+
+        public int getScoreKillBonus() {
+            return scoreKillBonus;
+        }
+
+        public double getScoreTeamCoopBonus() {
+            return scoreTeamCoopBonus;
+        }
+
+        public double getScoreMaxCoopMultiplier() {
+            return scoreMaxCoopMultiplier;
         }
     }
 

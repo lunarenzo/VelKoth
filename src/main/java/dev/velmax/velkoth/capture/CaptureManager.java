@@ -155,6 +155,7 @@ public final class CaptureManager {
                 }
                 session.setCapturingPlayer(null);
                 session.setElapsedSeconds(0);
+                session.setStreakSeconds(0);
                 session.resetGraceTimer();
             }
         }
@@ -189,6 +190,7 @@ public final class CaptureManager {
                     return;
 
                 session.setElapsedSeconds(0);
+                session.setStreakSeconds(0);
                 plugin.getDisplayManager().playCaptureStartSound(player);
                 plugin.getDisplayManager().broadcast(
                         plugin.getMessages().getCaptureStart(), arena, player);
@@ -214,11 +216,35 @@ public final class CaptureManager {
                 }
             }
             case SCORE -> {
+                session.incrementStreakSeconds();
+
+                var defaults = plugin.getPluginConfig().getCaptureDefaults();
+                int basePoints = defaults.getScoreBasePoints();
+
+                // 1. Calculate streak multiplier
+                double streakMultiplier = 1.0;
+                if (defaults.isScoreStreakEnabled()) {
+                    int streakLevel = 1 + (session.streakSeconds() / defaults.getScoreStreakInterval());
+                    streakMultiplier = Math.min(defaults.getScoreMaxMultiplier(), streakLevel);
+                }
+
+                // 2. Calculate coop multiplier (for teams)
+                double coopMultiplier = 1.0;
+                if (allTeamPlayers.size() > 1) {
+                    coopMultiplier = 1.0 + (allTeamPlayers.size() - 1) * defaults.getScoreTeamCoopBonus();
+                    coopMultiplier = Math.min(defaults.getScoreMaxCoopMultiplier(), coopMultiplier);
+                }
+
+                // 3. Calculate final points to award
+                int pointsToAdd = (int) Math.round(basePoints * streakMultiplier * coopMultiplier);
+
                 String identifier = getScoreIdentifier(player);
-                int score = session.addScore(identifier, 1);
+                int score = session.addScore(identifier, pointsToAdd);
                 session.incrementElapsed();
+
                 for (Player p : allTeamPlayers) {
                     plugin.getDisplayManager().sendActionBar(p, arena, session);
+                    plugin.getDisplayManager().playTickSound(p);
                 }
 
                 if (score >= arena.maxScore()) {
@@ -231,6 +257,7 @@ public final class CaptureManager {
     private void handleContested(Arena arena, CaptureSession session, List<Player> players) {
         boolean wasContested = session.isContested();
         session.setContested(true);
+        session.setStreakSeconds(0);
 
         if (!wasContested) {
             // Just became contested
@@ -257,7 +284,7 @@ public final class CaptureManager {
         // Capture timer pauses while contested — do not increment
     }
 
-    private void handleWin(Arena arena, CaptureSession session, Player winner) {
+    public void handleWin(Arena arena, CaptureSession session, Player winner) {
         // Fire win event
         KothWinEvent winEvent = new KothWinEvent(arena, winner, session.elapsedSeconds());
         Bukkit.getPluginManager().callEvent(winEvent);
@@ -383,8 +410,20 @@ public final class CaptureManager {
      * Gets an identifier for score tracking.
      * Uses team name if available, otherwise player UUID.
      */
-    private String getScoreIdentifier(Player player) {
+    public String getScoreIdentifier(Player player) {
         String teamName = plugin.getTeamManager().getTeamName(player);
         return (teamName != null) ? "TEAM:" + teamName : player.getUniqueId().toString();
+    }
+
+    public int getCapturingScore(CaptureSession session) {
+        if (session.capturingPlayer() == null) {
+            return 0;
+        }
+        Player player = Bukkit.getPlayer(session.capturingPlayer());
+        if (player == null) {
+            return 0;
+        }
+        String identifier = getScoreIdentifier(player);
+        return session.getScore(identifier);
     }
 }
